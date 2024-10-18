@@ -9,6 +9,8 @@ class Config:
     DEBUG = False
     TESTING = False
 
+    API_KEY = os.getenv('API_KEY')
+
     # MongoDB configurations
     MONGO_HOST = os.getenv("MONGO_HOST")
     MONGO_DATABASE = os.getenv("MONGO_DATABASE")
@@ -19,7 +21,7 @@ class Config:
     MONGO_URI = f"mongodb+srv://{MONGO_USERNAME}:{MONGO_PASSWORD}@{MONGO_HOST}/"
 
     SERVER_HOST = "0.0.0.0"
-    SERVER_PORT = 5081
+    SERVER_NAME = 'localhost:5081'
 
 
 class DevelopmentConfig(Config):

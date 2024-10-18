@@ -14,14 +14,12 @@ def create_app(config_class):
     from .resoruce_routes import Query
     schema = Schema(query=Query)
 
-    # API_KEY = "your-api-key-here"
-
     # GraphQL endpoint
     @app.route("/graphql", methods=["POST"])
     def graphql():
-        # api_key = request.headers.get('x-api-key')
-        # if api_key != API_KEY:
-        #     return jsonify({"error": "Unauthorized"}), 403
+        api_key = request.headers.get('x-api-key')
+        if api_key != app.config['API_KEY']:
+            return jsonify({"error": "Unauthorized"}), 403
 
         data = request.get_json()
         result = schema.execute(data.get("query"), variables=data.get("variables"))
