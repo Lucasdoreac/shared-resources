@@ -1,0 +1,30 @@
+[tool.poetry]
+name = "shared-resources"
+version = "0.1.0"
+description = ""
+authors = ["Your Name <you@example.com>"]
+readme = "README.md"
+packages = [
+    {include = "src", from = "."},
+    {include = "DAL", from = "src"},
+    {include = "BLL", from = "src"},
+    {include = "SLL", from="src"},
+
+]
+
+[tool.poetry.dependencies]
+python = "^3.12"
+flask = "^3.0.3"
+graphene = "<3.0"
+flask-graphql = "^2.0.1"
+requests = "^2.32.3"
+pymongo = "^4.10.1"
+pytest = "^8.3.3"
+mongomock = "^4.2.0.post1"
+setuptools = "^75.2.0"
+python-dotenv = "^1.0.1"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
