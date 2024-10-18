@@ -11,7 +11,7 @@ def create_app(config_class):
     from src.DAL import MongoDBConnectionFactory
     MongoDBConnectionFactory.init_app(app.config['MONGO_URI'], app.config['MONGO_DATABASE'])
 
-    from .resoruce_routes import Query
+    from .resoruces import Query
     schema = Schema(query=Query)
 
     # GraphQL endpoint
