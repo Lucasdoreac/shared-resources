@@ -7,7 +7,6 @@ from utils import log_info_request, log_resource_not_found, get_swagger_specific
 teachers_bp = Blueprint('teachers_bp', __name__, url_prefix="/teachers")
 
 spec = get_swagger_specification(path="teachers", method="GET")
-print("swag:", spec)
 @teachers_bp.route("/", methods=["GET"])
 @log_info_request
 @swag_from(spec)

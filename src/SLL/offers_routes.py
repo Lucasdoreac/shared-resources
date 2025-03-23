@@ -8,7 +8,6 @@ from utils import log_info_request, log_resource_not_found, check_api_key, get_s
 offers_bp = Blueprint('offer_bp', __name__, url_prefix="/offers") # Revisar
 
 spec = get_swagger_specification(path="offers", method="GET")
-print("swag:", spec)
 @offers_bp.route('/', methods=['GET'])
 @log_info_request
 @swag_from(spec)
