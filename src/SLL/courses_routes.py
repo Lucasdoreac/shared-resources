@@ -23,7 +23,8 @@ def get_all_courses():
     course_name = request.args.get("course_name")
     if course_name:
         try:
-            return get_course_by_name(course_name)
+            result = get_course_by_name(course_name)
+            return result if result else []
         except Course.DoesNotExist:
             log_resource_not_found("Course", "course_name", course_name)
             return jsonify({"message": "Course not found"}), 404

@@ -14,6 +14,7 @@ The `Query` class specifies root-level queries. The `Mutation` class defines roo
 import graphene
 from graphene import ObjectType, List, Field, Mutation, Scalar
 from graphene_mongo import MongoengineObjectType
+import datetime
 
 from DAL import Campus, Course, Discipline, Period, Room, Teacher, Offer, Type
 
@@ -257,6 +258,9 @@ class Query(ObjectType):
         searchPeriod=graphene.String(),
         searchRoom=graphene.String(),
         searchTeacher=graphene.String(),
+        searchOfferId=graphene.Int(),
+        searchSemester=graphene.Int(),
+        searchYear=graphene.Int(),
     )
     types = List(
         TypesType,
@@ -369,7 +373,8 @@ class Query(ObjectType):
             root, info, first=None, skip=None,
             searchCampus=None, searchDiscipline=None,
             searchPeriod=None, searchRoom=None,
-            searchTeacher=None,
+            searchTeacher=None, searchOfferId=None,
+            searchSemester=None, searchYear=None
     ):
         """
         Return a list of offers. Supports filtering by related entities' names 
@@ -413,6 +418,13 @@ class Query(ObjectType):
                 query = query.filter(teacher=teacher.id)
             else:
                 return []
+        if searchOfferId:
+            query = query.filter(offer_id=searchOfferId)
+        if searchSemester:
+            query = query.filter(semester=searchSemester)
+        if searchYear:
+            query = query.filter(year=searchYear)
+
         return query
 
     def resolve_types(root, info):
@@ -455,6 +467,8 @@ class OfferInput(graphene.InputObjectType):
         room (String): The room ID as a string.
         teacher (String): The teacher ID as a string.
         total_enrolled (Int): The total number of enrolled students.
+        total_optatives_enrolled (Int): The total number of enrolled students in optative courses.
+        offer_id (Int): The unique ID of the offer.
     """
     discipline = IntOrString(required=True)
     period = graphene.String(required=True)
@@ -462,6 +476,12 @@ class OfferInput(graphene.InputObjectType):
     room = graphene.String(required=True)
     teacher = graphene.String(required=True)
     total_enrolled = graphene.Int(required=True)
+
+    ## add fields HERE
+    total_optatives_enrolled = graphene.Int(required=True)
+    year = graphene.Int(required=True)
+    semester = graphene.Int(required=True)
+    offer_id = graphene.Int(required=True)
 
 
 class CreateOffer(Mutation):
@@ -500,6 +520,10 @@ class CreateOffer(Mutation):
             room=room.id,
             teacher=teacher.id,
             total_enrolled=offer_data.total_enrolled,
+            total_optatives_enrolled=offer_data.total_optatives_enrolled,
+            year=datetime.datetime.now().year,
+            semester=1 if datetime.datetime.now().month < 7 else 2,
+            offer_id=offer_data.offer_id
         )
         offer.save()
 

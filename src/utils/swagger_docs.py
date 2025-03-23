@@ -231,7 +231,7 @@ def get_swagger_specification(path, method=None):
             "operationId": "getOffers",
             "parameters": [
                 {
-                    "name": "offer_id",
+                    "name": "_id",
                     "in": "query",
                     "description": "Filtra oferta pelo ID",
                     "required": False,
@@ -286,6 +286,36 @@ def get_swagger_specification(path, method=None):
                     "required": False,
                     "type": "string"
                 },
+                ## add fields HERE
+                {
+                    "name": "total_optatives_enrolled",
+                    "in": "query",
+                    "description": "Filtra oferta pelo número total de matriculados em optativas",
+                    "required": False,
+                    "type": "string"
+                },
+                {
+                    "name": "year",
+                    "in": "query",
+                    "description": "Filtra oferta pelo ano",
+                    "required": False,
+                    "type": "string"
+                },
+                {
+                    "name": "semester",
+                    "in": "query",
+                    "description": "Filtra oferta pelo semestre",
+                    "required": False,
+                    "type": "string"
+                },
+                {
+                    "name": "offer_id",
+                    "in": "query",
+                    "description": "Filtra oferta pelo ID da oferta",
+                    "required": False,
+                    "type": "string"
+                },
+
                 # Carregar retorno dos parâmetros sobre paginação
                 *pagination_parameters()
             ],
@@ -306,7 +336,11 @@ def get_swagger_specification(path, method=None):
                                         "campus": {"type": "string"},
                                         "room": {"type": "string"},
                                         "teacher": {"type": "string"},
-                                        "total_enrolled": {"type": "integer"}
+                                        "total_enrolled": {"type": "integer"},
+                                        "total_optatives_enrolled": {"type": "integer"},
+                                        "year": {"type": "integer"},
+                                        "semester": {"type": "integer"},
+                                        "offer_id": {"type": "integer"}
                                     }
                                 }
                             },
@@ -357,7 +391,9 @@ def get_swagger_specification(path, method=None):
                             "period": {"type": "string", "description": "ID do período"},
                             "room": {"type": "string", "description": "ID da sala"},
                             "teacher": {"type": "string", "description": "ID do professor"},
-                            "total_enrolled": {"type": "integer", "description": "Número total de matriculados"}
+                            "total_enrolled": {"type": "integer", "description": "Número total de matriculados"},
+                            "total_optatives_enrolled": {"type": "integer", "description": "Número total de matriculados em optativas"},
+                            "offer_id": {"type": "integer", "description": "ID da oferta"}
                         }
                     }
                 }

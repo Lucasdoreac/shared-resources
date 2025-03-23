@@ -12,6 +12,10 @@ The goal of this project is to expose data stored in MongoDB through a **GraphQL
 the models and perform queries on MongoDB. The GraphQL API allows interaction with the data using queries and resolvers
 to efficiently return data.
 
+### Access the GraphQL API and Rest API
+- rest api link: http://localhost:5081/apidocs
+- graphql api link: http://localhost:5081/graphql/graphiql
+
 ## **Project Structure**
 
 The project is divided into three main components:

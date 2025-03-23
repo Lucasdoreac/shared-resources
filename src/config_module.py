@@ -9,8 +9,6 @@ class Config:
     DEBUG = False
     TESTING = False
 
-    API_KEY = os.getenv('API_KEY')
-
     # MongoDB database
     MONGO_DATABASE = os.getenv("MONGO_DATABASE")
 

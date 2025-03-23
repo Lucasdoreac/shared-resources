@@ -51,11 +51,16 @@ class Offer(Document):
     """Offer entity model"""
     meta = {"collection": "offers"}
     discipline = IntField(required=True, db_field='COD_DISC')
-    period = StringField(required=True, db_field='PERIODO')
-    campus = StringField(required=True, db_field='CAMPUS')
-    room = StringField(required=True, db_field='NR_SALA')
-    teacher = StringField(required=True, db_field='PROFESSOR')
+    period = StringField(required=True, db_field='period_id')
+    campus = StringField(required=True, db_field='campus_id')
+    room = StringField(required=True, db_field='room_id')
+    teacher = StringField(required=True, db_field='teacher_id')
     total_enrolled = IntField(required=True, db_field='TOT_MAT')
+    total_optatives_enrolled = IntField(required=True, db_field='TOT_MAT_OPT')
+    year = IntField(required=True, db_field='ANO')
+    semester = IntField(required=True, db_field='SEMESTRE')
+    offer_id = IntField(required=True, db_field='ID_OFERT')
+
 
     def fetch_entity(loader, model, identifier, name_field="name"):
         """

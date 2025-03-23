@@ -2,7 +2,10 @@
 name = "shared-resources"
 version = "0.1.0"
 description = ""
-authors = ["Your Name <you@example.com>"]
+authors = [
+    "Danrley Pereira <danrleywillian@gmail.com>",
+    "Guilherme Amaral <guilherme2004@gmail.com>"
+]
 readme = "README.md"
 packages = [
     {include = "src", from = "."},

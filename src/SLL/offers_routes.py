@@ -1,5 +1,6 @@
 from flasgger import swag_from
 from flask import Blueprint, jsonify, request
+import datetime
 
 from DAL import Offer, Campus, Discipline, Period, Room, Teacher
 from utils import log_info_request, log_resource_not_found, check_api_key, get_swagger_specification
@@ -12,9 +13,9 @@ print("swag:", spec)
 @log_info_request
 @swag_from(spec)
 def get_offers():
-    offer_id = request.args.get("offer_id")
-    if offer_id:
-        return filter_entity("_id", offer_id)
+    _id = request.args.get("id")
+    if _id:
+        return filter_entity("_id", _id)
 
     campus_id = request.args.get("campus_id")
     if campus_id:
@@ -44,14 +45,32 @@ def get_offers():
     if total_enrolled:
         return filter_entity("total_enrolled", total_enrolled)
 
+    ## add fields HERE
+    total_optatives_enrolled = request.args.get("total_optatives_enrolled")
+    if total_optatives_enrolled:
+        return filter_entity("total_optatives_enrolled", total_optatives_enrolled)
+
+    year = request.args.get("year")
+    if year:
+        return filter_entity("year", year)
+
+    semester = request.args.get("semester")
+    if semester:
+        return filter_entity("semester", semester)
+
+    offer_id = request.args.get("offer_id")
+    if offer_id:
+        return filter_entity("offer_id", offer_id)
+
+
     offers_queryset = Offer.objects()
 
     return format_offers_response(offers_queryset)
 
-
+spec_post = get_swagger_specification(path="offers", method="POST")
 @offers_bp.route('/', methods=['POST'])
 @check_api_key
-@swag_from(spec)
+@swag_from(spec_post)
 def create_offer():
     data = request.get_json()
     try:
@@ -74,6 +93,9 @@ def create_offer():
             room=room.id,
             teacher=teacher.id,
             total_enrolled=data["total_enrolled"],
+            total_optatives_enrolled=data["total_optatives_enrolled"] if "total_optatives_enrolled" in data else 0,
+            year=datetime.date.today().year,
+            semester=1 if datetime.date.today().month < 7 else 2,
         )
         offer.save()
 
@@ -129,6 +151,10 @@ def format_offers_response(base_queryset):
             "room": r.room,
             "teacher": r.teacher,
             "total_enrolled": r.total_enrolled,
+            "total_optatives_enrolled": r.total_optatives_enrolled,
+            "year": r.year,
+            "semester": r.semester,
+            "offer_id": r.offer_id,
         }
         for r in result
     ]

@@ -30,11 +30,6 @@ def create_app(config_class):
     }
     swagger = Swagger(app, config=swagger_config, merge=True) # merge=True para mesclar a nossa config com o padrão
 
-
-    # Lista todas as rotas registradas
-    for rule in app.url_map.iter_rules():
-        print(f"Rota: {rule.rule}, Endpoint: {rule.endpoint}, Métodos: {rule.methods}")
-
     # Conexão com o banco de dados
     connect(
         db=app.config['MONGO_DATABASE'],
