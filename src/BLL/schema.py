@@ -427,9 +427,10 @@ class Query(ObjectType):
 
         return query
 
-    def resolve_types(root, info):
-        """Return all Types."""
-        return Type.objects.all()
+    def resolve_types(root, info, search=None):
+        query = Type.objects.filter(collection__icontains=search) \
+            if search else Type.objects.all()
+        return query
 
 
 class IntOrString(Scalar):
