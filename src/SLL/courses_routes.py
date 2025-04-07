@@ -35,7 +35,8 @@ def get_all_courses():
 def get_course_by_id(course_id):
     course = Course.objects.get(id=course_id)
     if course:
-        return jsonify({"id": course.id, "name": course.name})
+        return jsonify({"id": course.id, "name": course.name,
+                        "coordinator": course.coordinator if course.coordinator else None,})
 
 
 def get_course_by_name(course_name):
@@ -62,6 +63,7 @@ def format_courses_response(base_queryset):
         {
             "id": str(r.id),
             "name": r.name,
+            "coordinator": r.coordinator if r.coordinator else None,
         }
         for r in result
     ]

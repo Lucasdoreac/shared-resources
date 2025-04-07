@@ -45,7 +45,8 @@ def get_teacher_by_id(teacher_id):
         return jsonify({
             "id": result.id,
             "name": result.name,
-            "course_id": result.course
+            "course_id": result.course,
+            "email": result.email if result.email else None,
         })
 
 def filter_teacher_by_name(teacher_name):
@@ -77,7 +78,8 @@ def format_teacher_response(base_queryset):
         {
             "id": str(r.id),
             "name": r.name,
-            "course": r.course
+            "course": r.course,
+            "email": r.email if r.email else None,
         }
         for r in result
     ]
