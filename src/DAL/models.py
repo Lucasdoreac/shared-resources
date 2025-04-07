@@ -13,6 +13,7 @@ class Course(Document):
     meta = {"collection": "courses"}
     id = IntField(primary_key=True, db_field='_id')
     name = StringField(required=True, db_field='DES_CURS')
+    coordinator = StringField(required=False, db_field='COORDINATOR')
 
 
 class Discipline(Document):
@@ -45,6 +46,7 @@ class Teacher(Document):
     id = StringField(primary_key=True, db_field='_id')
     name = StringField(required=True, db_field='PROFESSOR')
     course = ListField(IntField(), required=True, db_field='COD_CURS')
+    email = StringField(required=False, db_field='email')
 
 
 class Offer(Document):
