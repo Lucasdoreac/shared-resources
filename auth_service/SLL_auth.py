@@ -1,9 +1,6 @@
-import os
-import requests
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify
 from flask_cors import CORS
-from flasgger import Swagger, swag_from
-from functools import wraps
+from flasgger import Swagger
 
 
 # create app
@@ -32,11 +29,11 @@ def create_app(config_class):
     app.config.from_object(config_class)
     CORS(app)
 
-    from auth_service.mongo import MongoDBConnectionFactory
+    from mongo import MongoDBConnectionFactory
     # Load MongoDB Factory
     MongoDBConnectionFactory.init_app(app.config['MONGO_URI'], app.config['MONGO_DATABASE'])
 
-    from auth_service.auth_routes import auth_bp
+    from auth_routes import auth_bp
 
     # Blueprints register
     app.register_blueprint(auth_bp)

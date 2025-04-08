@@ -1,0 +1,20 @@
+[tool.poetry]
+name = "auth-service"
+version = "0.1.0"
+description = "serviço de autenticação para o cluster do LabTech"
+authors = ["Danrley Pereira <danrleywillian@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.12"
+flask = "^3.1.0"
+flasgger = "^0.9.7.1"
+pymongo = "^4.11.3"
+flask-cors = "^5.0.1"
+dotenv = "^0.9.9"
+requests = "^2.32.3"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

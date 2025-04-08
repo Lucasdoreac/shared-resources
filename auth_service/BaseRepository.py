@@ -1,6 +1,6 @@
 from abc import ABC,abstractmethod
 from bson import ObjectId
-from auth_service.mongo import MongoDBConnectionFactory
+from mongo import MongoDBConnectionFactory
 
 
 class BaseRepository(ABC):

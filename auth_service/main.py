@@ -1,4 +1,3 @@
-# from sendblue import SendBlue
 from SLL_auth import create_app
 from configmodule import get_config
 

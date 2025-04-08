@@ -1,5 +1,5 @@
 from datetime import datetime,timedelta
-from auth_service.DAL_auth import AuthenticationRepository
+from DAL_auth import AuthenticationRepository
 from hashlib import sha256
 
 class AuthenticationController:

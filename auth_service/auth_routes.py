@@ -4,8 +4,8 @@ from functools import wraps
 import requests
 from flasgger import swag_from
 from flask import Blueprint, jsonify, request, render_template
-from auth_service.controller import AuthenticationController
-from auth_service.swagger_docs import get_swagger_specification
+from controller import AuthenticationController
+from swagger_docs import get_swagger_specification
 
 auth_bp = Blueprint('auth', __name__)
 
