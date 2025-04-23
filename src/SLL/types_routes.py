@@ -1,6 +1,6 @@
 from flasgger import swag_from
 from flask import Blueprint, jsonify, request
-
+from utils.cache import cache
 from DAL import Type
 from utils import log_info_request, log_resource_not_found, get_swagger_specification
 
@@ -10,6 +10,7 @@ spec = get_swagger_specification(path="types", method="GET")
 @types_bp.route("/", methods=["GET"])
 @log_info_request
 @swag_from(spec)
+@cache.cached(timeout=43200, query_string=True)  # Cache for 12 hours
 def get_types():
     type_id = request.args.get("type_id")
     if type_id:
