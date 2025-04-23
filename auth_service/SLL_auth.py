@@ -2,9 +2,9 @@ import os
 from flask import Flask, jsonify
 from flask_cors import CORS
 from flasgger import Swagger
-from flask_caching import Cache
 from utils.cache import init_cache
 
+cache = Cache()
 
 # create app
 def create_app(config_class):

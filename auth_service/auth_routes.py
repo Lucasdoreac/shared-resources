@@ -7,6 +7,7 @@ from controller import AuthenticationController
 from swagger_docs import get_swagger_specification
 from utils.cache import cache
 
+
 auth_bp = Blueprint('auth', __name__)
 
 def token_required(f):
