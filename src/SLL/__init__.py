@@ -1,14 +1,16 @@
 from flasgger import Swagger
 from flask import Flask, jsonify
 from mongoengine import connect
-
 from utils import log_error_request
+from utils.cache import init_cache
 from .graphql import setup_graphql_routes
 from .restapi import setup_rest_routes
 
 def create_app(config_class):
     app = Flask(__name__)
     app.config.from_object(config_class)
+
+    init_cache(app)
 
     # Registra as rotas REST e GraphQL
     setup_rest_routes(app)

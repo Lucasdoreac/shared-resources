@@ -6,7 +6,7 @@ from flasgger import swag_from
 from flask import Blueprint, jsonify, request, render_template
 from controller import AuthenticationController
 from swagger_docs import get_swagger_specification
-from SLL_auth import cache
+from utils.cache import cache
 
 auth_bp = Blueprint('auth', __name__)
 
