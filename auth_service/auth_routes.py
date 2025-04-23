@@ -1,11 +1,12 @@
 import os
 from functools import wraps
-
+from flask_caching import Cache
 import requests
 from flasgger import swag_from
 from flask import Blueprint, jsonify, request, render_template
 from controller import AuthenticationController
 from swagger_docs import get_swagger_specification
+from SLL_auth import cache
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -23,10 +24,22 @@ def token_required(f):
 
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        authentication_controller = AuthenticationController()
-        valid_hash = authentication_controller.is_token_valid(token=request.args.get('token'),
-                                                              email=request.args.get('email'))
+        token = request.args.get('token')
+        email = request.args.get('email')
 
+        cache_key = f"auth_token:{token}:{email}"
+        cached_valid = cache.get(cache_key)
+        if cached_valid is not None:
+            if cached_valid is True:
+                return f(*args, **kwargs)
+            else:
+                return jsonify({"message": "Invalid or missing token"}), 403
+
+        authentication_controller = AuthenticationController()
+        valid_hash = authentication_controller.is_token_valid(token=token,
+                                                              email=email)
+
+        cache.set(cache_key, valid_hash, timeout=86400)  # Cache for 24 hours
         if valid_hash:
             return f(*args, **kwargs)
         else:
@@ -123,6 +136,7 @@ class AuthRoutes:
 
     @staticmethod
     @auth_bp.route('/auth/validate', methods=['GET'])
+    @cache.cached(timeout=86400,query_string=True)  # Cache for 24 hours
     @token_required
     @swag_from(get_swagger_specification(path='auth', method='GET'))
     def validate_hash():

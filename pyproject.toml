@@ -30,6 +30,9 @@ mongoengine = "^0.29.1"
 graphene-mongo = "0.2.0"
 flasgger = "^0.9.7.1"
 gunicorn = "^23.0.0"
+flask-caching = "^2.3.1"
+redis = "^5.2.1"
+docker-autocompose = "^1.0.1"
 
 
 [build-system]
