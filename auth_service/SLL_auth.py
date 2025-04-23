@@ -2,7 +2,6 @@ import os
 from flask import Flask, jsonify
 from flask_cors import CORS
 from flasgger import Swagger
-from flask_caching import Cache
 from utils.cache import init_cache
 
 
