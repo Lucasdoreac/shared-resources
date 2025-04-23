@@ -45,3 +45,15 @@ the official lightweight image and Compose configuration make setup instant and 
 
    ```bash
    docker compose up -d
+
+## Want to Verify?
+If you want to monitor Redis, run the following command from Git Bash in the directory where your project is running:
+   ```bash
+   winpty docker exec -it redis-local redis-cli monitor
+   ```
+Example output:
+
+![image](https://github.com/user-attachments/assets/dcb579a7-53da-4ca6-bdf5-e061ba601938)
+
+This stream shows only the call(the exact command sent to redis server) it does not include the reply.Use it to verify that your aplication is ussing the expected commands 
+
