@@ -1,6 +1,5 @@
 import os
 from functools import wraps
-from flask_caching import Cache
 import requests
 from flasgger import swag_from
 from flask import Blueprint, jsonify, request, render_template
@@ -136,7 +135,7 @@ class AuthRoutes:
 
     @staticmethod
     @auth_bp.route('/auth/validate', methods=['GET'])
-    @cache.cached(timeout=86400,query_string=True)  # Cache for 24 hours
+    @cache.cached(timeout=43200,query_string=True)  # Cache for 12 hours
     @token_required
     @swag_from(get_swagger_specification(path='auth', method='GET'))
     def validate_hash():

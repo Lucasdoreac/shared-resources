@@ -11,7 +11,7 @@ spec = get_swagger_specification(path="teachers", method="GET")
 @teachers_bp.route("/", methods=["GET"])
 @log_info_request
 @swag_from(spec)
-@cache.cached(timeout=86400,query_string=True) # Cache for 24 hours
+@cache.cached(timeout=43200,query_string=True) # Cache for 12 hours
 def get_teachers():
     teacher_id = request.args.get("teacher_id")
     if teacher_id:
