@@ -1,7 +1,8 @@
+import flask_caching
 from flasgger import swag_from
 from flask import Blueprint, jsonify, request
-
 from DAL import Teacher
+from utils.cache import cache
 from utils import log_info_request, log_resource_not_found, get_swagger_specification
 
 teachers_bp = Blueprint('teachers_bp', __name__, url_prefix="/teachers")
@@ -10,6 +11,7 @@ spec = get_swagger_specification(path="teachers", method="GET")
 @teachers_bp.route("/", methods=["GET"])
 @log_info_request
 @swag_from(spec)
+@cache.cached(timeout=43200,query_string=True) # Cache for 12 hours
 def get_teachers():
     teacher_id = request.args.get("teacher_id")
     if teacher_id:
