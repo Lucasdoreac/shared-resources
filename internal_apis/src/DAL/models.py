@@ -12,6 +12,7 @@ class Course(Document):
     """Course entity model"""
     meta = {"collection": "courses"}
     id = IntField(primary_key=True, db_field='_id')
+    code = StringField(required=True, db_field='COD_CURS')
     name = StringField(required=True, db_field='DES_CURS')
     coordinator = StringField(required=False, db_field='COORDINATOR')
 

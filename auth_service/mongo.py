@@ -42,7 +42,7 @@ class MongoDBConnectionFactory:
                     database (str): Nome do banco de dados a ser utilizado.
         """
 
-        print("init app")
+        print("init auth_app")
         if MongoDBConnectionFactory._client is None:
             MongoDBConnectionFactory._client = MongoClient(uri)
             MongoDBConnectionFactory._database = database

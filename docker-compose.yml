@@ -6,6 +6,7 @@ services:
     command:
       - "redis-server"
       - "--appendonly yes"
+      - "--bind 0.0.0.0"  # Allow connections from any IP
     entrypoint:
       - "docker-entrypoint.sh"
     ports:

@@ -51,8 +51,9 @@ def get_room_by_id(room_id):
 
 def filter_room_by_name(room_name):
     result = Room.objects.filter(name__icontains=room_name)
-    if result:
-        return format_rooms_response(result)
+    if not result:  # Check if queryset is empty
+        raise Room.DoesNotExist(f"Room with name containing '{room_name}' not found")
+    return format_rooms_response(result)
 
 def filter_room_by_campus(campus):
     result = Room.objects.filter(campus__icontains=campus)

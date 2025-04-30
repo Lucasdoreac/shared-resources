@@ -2,7 +2,7 @@ import os
 from flask import Flask, jsonify
 from flask_cors import CORS
 from flasgger import Swagger
-from utils.cache import init_cache
+from cache import init_cache
 
 
 # create app

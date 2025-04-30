@@ -1,7 +1,7 @@
 import pytest
 import mongomock
 from mongoengine import connect, disconnect
-from src.DAL.models import Campus, Course, Discipline, Teacher
+from DAL.models import Campus, Course, Discipline, Teacher
 
 @pytest.fixture(scope="module")
 def mongo_connection():

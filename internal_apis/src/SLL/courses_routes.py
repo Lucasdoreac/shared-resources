@@ -41,8 +41,9 @@ def get_course_by_id(course_id):
 
 def get_course_by_name(course_name):
     course = Course.objects.filter(name__icontains=course_name)
-    if course:
-        return format_courses_response(course)
+    if not course:
+        raise Course.DoesNotExist(f"Course with name containing '{course_name}' not found")
+    return format_courses_response(course)
 
 
 def pagination_config(base_queryset):
