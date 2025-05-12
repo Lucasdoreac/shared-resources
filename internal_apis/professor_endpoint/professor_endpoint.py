@@ -6,11 +6,11 @@ from BLL.schema import DeactivateTeacher
 from DAL import Offer, Campus, Discipline, Period, Room, Teacher
 from utils import log_info_request, log_resource_not_found, check_api_key, get_swagger_specification
 
-deactivate_teacher_bp = Blueprint('deactivate_teacher_bp', __name__, url_prefix="teachers/softdel")
+deactivate_teacher_bp = Blueprint('deactivate_teacher_bp', __name__, url_prefix="/softdel")
 
 
 @deactivate_teacher_bp.route("/", methods=["DELETE"])
-@log_info_request
+@cache.cached(timeout=43200, query_string=True)
 def delete_item():
     teacher_name = request.args.get("teacher_name")
     mutation = f'''

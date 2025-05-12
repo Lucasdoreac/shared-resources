@@ -1,3 +1,5 @@
+from flask import jsonify
+
 from SLL import create_app
 from config_module import get_config
 
