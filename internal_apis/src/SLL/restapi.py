@@ -18,7 +18,7 @@ def setup_rest_routes(app):
     app.register_blueprint(rooms_bp, url_prefix="/restapi/rooms")
     app.register_blueprint(teachers_bp, url_prefix="/restapi/teachers")
     app.register_blueprint(types_bp, url_prefix="/restapi/types/")
-    app.register_blueprint(deactivate_teacher_bp, url_prefix="/restapi/softdel/")
+    app.register_blueprint(deactivate_teacher_bp, url_prefix="/restapi/teachers/softdel/")
 
 
 
