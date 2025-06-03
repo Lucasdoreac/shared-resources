@@ -14,4 +14,5 @@ RUN poetry install --no-root
 
 EXPOSE 5081
 
-CMD ["poetry", "run", "gunicorn", "-w", "2", "-b", "0.0.0.0:5081", "main:internal_apis"]
+
+CMD ["sh", "-c", "PYTHONPATH=src poetry run gunicorn -w 2 -b 0.0.0.0:5081 main:internal_api"]

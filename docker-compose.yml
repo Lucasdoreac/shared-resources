@@ -39,6 +39,15 @@ services:
       - REDIS_PORT=6379
       - REDIS_URL=redis://redis-local:6379/0
 
+  mongo:
+    image: mongo:6.0
+    container_name: mongo
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+      
   internal_apis:
     build:
       context: ./internal_apis
@@ -57,16 +66,6 @@ services:
       - MONGO_URI=mongodb://mongo:27017/shared-resources
       - MONGO_DATABASE=shared-resources
 
-
-
-  mongo:
-    image: mongo:6.0
-    container_name: mongo
-    restart: unless-stopped
-    ports:
-      - "27017:27017"
-    volumes:
-      - mongo-data:/data/db
 
 volumes:
   redis-data:
