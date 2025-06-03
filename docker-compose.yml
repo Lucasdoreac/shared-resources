@@ -23,6 +23,53 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+
+  auth-service:
+    build:
+      context: ./auth_service
+      dockerfile: Dockerfile
+    container_name: auth_service
+    restart: unless-stopped
+    ports:
+      - "5050:5050"
+    depends_on:
+      - redis-local
+    environment:
+      - REDIS_HOST=redis-local
+      - REDIS_PORT=6379
+      - REDIS_URL=redis://redis-local:6379/0
+
+  internal_apis:
+    build:
+      context: ./internal_apis
+      dockerfile: Dockerfile
+    container_name: internal_apis
+    restart: unless-stopped
+    ports:
+      - "5081:5081"
+    depends_on:
+      - redis-local
+      - mongo
+    environment:
+      - REDIS_HOST=redis-local
+      - REDIS_PORT=6379
+      - REDIS_URL=redis://redis-local:6379/0
+      - MONGO_URI=mongodb://mongo:27017/shared-resources
+      - MONGO_DATABASE=shared-resources
+
+
+
+  mongo:
+    image: mongo:6.0
+    container_name: mongo
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+
 volumes:
   redis-data:
+    driver: local
+  mongo-data:
     driver: local
