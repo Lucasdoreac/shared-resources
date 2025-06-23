@@ -14,7 +14,7 @@ def start_leaky_bucket_worker(leakrate, queue_name=None):
         method_frame, header_frame, body = channel.basic_get(queue=queue_name)
         if method_frame:
             print(f"Mensagem consumida: {body.decode()}")  # Log para depuração
-            with open("/home/pedro/Área de trabalho/shared-resources/shared-resources/internal_apis/backpressure/test_logs", "a") as f:
+            with open("backpressure/test_logs", "a") as f:
                 f.write(body.decode() + "\n")
             channel.basic_ack(method_frame.delivery_tag)
         else:
