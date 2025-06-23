@@ -1,0 +1,46 @@
+import time
+import traceback
+from functools import wraps
+from flask import request, jsonify
+import rabbitmq_utils
+
+import time
+from functools import wraps
+from flask import request, jsonify
+import rabbitmq_utils
+
+class LeakyBucketRabbitMQ:
+    @staticmethod
+    def rate_limit_by_leaky_bucket(bucketcapacity, queue_name=None):
+        def decorator(f):
+            @wraps(f)
+            def wrapped(*args, **kwargs):
+                try:
+                    current_queue = queue_name
+                    if current_queue is None:
+                        current_queue = rabbitmq_utils.get_leakybucket_queue_name()
+
+                    connection, channel = rabbitmq_utils.create_rabbitmq_connection()
+                    queue = channel.queue_declare(queue=current_queue, durable=True, arguments={'x-max-length': bucketcapacity})
+                    current_tokens = queue.method.message_count
+
+                    if current_tokens < bucketcapacity:
+
+                        req_id = request.headers.get("X-Req-Id") or str(time.time())
+                        message = f'{current_queue}: {req_id}'
+                        channel.basic_publish(exchange='', routing_key=current_queue, body='token')
+                        connection.close()
+
+                        return f(*args, **kwargs)
+                    else:
+                        connection.close()
+                        return jsonify({"status": "error", "message": "Request limit exceeded!"}), 429
+                except Exception as e:
+                    return jsonify({
+                        "status": "error",
+                        "message": f"Erro interno: {str(e)}",
+                        "trace": traceback.format_exc()
+                    }), 500
+
+            return wrapped
+        return decorator

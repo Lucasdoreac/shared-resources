@@ -23,6 +23,47 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq-local
+    restart: unless-stopped
+    ports:
+      - "5672:5672"   # Porta para o protocolo AMQP
+      - "15672:15672" # Porta para a interface de gerenciamento
+    environment:
+      - RABBITMQ_DEFAULT_USER=user
+      - RABBITMQ_DEFAULT_PASS=password
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  tests:
+    build:
+      context: ./internal_apis
+      dockerfile: Dockerfile.tests
+    image: shared-resources-tests:latest
+    depends_on:
+      - rabbitmq
+      - redis-local
+    volumes:
+      - ./internal_apis:/app/internal_apis
+      - ./internal_apis/pyproject.toml:/app/pyproject.toml
+      - ./internal_apis/poetry.lock:/app/poetry.lock
+    working_dir: /app/internal_apis
+    command: >
+      sh -c "pip install poetry && poetry install && poetry run pytest backpressure/backpressure_leaky_bucket_test.py"
+    environment:
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_USER=user
+      - RABBITMQ_PASS=password
+
 volumes:
   redis-data:
+    driver: local
+  rabbitmq-data:
     driver: local

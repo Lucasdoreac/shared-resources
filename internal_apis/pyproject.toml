@@ -6,7 +6,7 @@ authors = [
     "Danrley Pereira <danrleywillian@gmail.com>",
     "Guilherme Amaral <guilherme2004@gmail.com>"
 ]
-readme = "README.md"
+
 packages = [
     {include = "src", from = "."},
     {include = "DAL", from = "src"},
@@ -32,6 +32,7 @@ flasgger = "^0.9.7.1"
 gunicorn = "^23.0.0"
 flask-caching = "^2.3.1"
 redis = "^5.2.1"
+pika = "^1.3.2"
 
 
 [build-system]
