@@ -3,11 +3,13 @@ from flasgger import swag_from
 
 from DAL import Campus
 from utils import log_info_request, log_resource_not_found, get_swagger_specification
+from backpressure.individual_leaky_bucket import LeakyBucket
 
 campus_bp = Blueprint('campus_bp', __name__, url_prefix="/campus")
 
 spec = get_swagger_specification(path="campus", method="GET")
 @campus_bp.route("/", methods=["GET"])
+@LeakyBucket.individual_leaky_bucket(bucketcapacity=2, leakrate=2, keytimeout=100)
 @log_info_request
 @swag_from(spec)
 def get_campus():

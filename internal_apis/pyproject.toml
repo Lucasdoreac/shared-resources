@@ -16,7 +16,7 @@ packages = [
 ]
 
 [tool.poetry.dependencies]
-python = "^3.12"
+python = "^3.11"
 flask = "^3.0.3"
 graphene = "2.1.9"
 flask-graphql = "2.0.1"
