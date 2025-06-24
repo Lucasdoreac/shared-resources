@@ -14,9 +14,8 @@ class LeakyBucket:
         return redis.Redis.from_url("redis://localhost:6379/0")
 
     @staticmethod
-    def rate_limit_by_leaky_bucket(bucketcapacity, leakrate, keytimeout):
+    def individual_leaky_bucket(bucketcapacity, leakrate, keytimeout):
         def decorator(f):
-            @token_required
             @wraps(f)
             def wrapped(*args, **kwargs):
                 try:

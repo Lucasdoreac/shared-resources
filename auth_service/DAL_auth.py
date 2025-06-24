@@ -1,5 +1,5 @@
 from datetime import datetime
-from BaseRepository import BaseRepository
+from auth_service.BaseRepository import BaseRepository
 
 
 class AuthenticationRepository(BaseRepository):

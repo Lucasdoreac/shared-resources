@@ -2,12 +2,12 @@ import time
 import traceback
 from functools import wraps
 from flask import request, jsonify
-import rabbitmq_utils
+from datetime import datetime
 
 import time
 from functools import wraps
 from flask import request, jsonify
-import rabbitmq_utils
+from backpressure import rabbitmq_utils
 
 class LeakyBucketRabbitMQ:
     @staticmethod
@@ -16,6 +16,7 @@ class LeakyBucketRabbitMQ:
             @wraps(f)
             def wrapped(*args, **kwargs):
                 try:
+
                     current_queue = queue_name
                     if current_queue is None:
                         current_queue = rabbitmq_utils.get_leakybucket_queue_name()
@@ -26,9 +27,9 @@ class LeakyBucketRabbitMQ:
 
                     if current_tokens < bucketcapacity:
 
-                        req_id = request.headers.get("X-Req-Id") or str(time.time())
+                        req_id = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
                         message = f'{current_queue}: {req_id}'
-                        channel.basic_publish(exchange='', routing_key=current_queue, body='token')
+                        channel.basic_publish(exchange='', routing_key=current_queue, body=message.encode())
                         connection.close()
 
                         return f(*args, **kwargs)

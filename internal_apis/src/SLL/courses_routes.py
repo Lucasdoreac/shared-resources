@@ -3,11 +3,13 @@ from flasgger import swag_from
 
 from DAL import Course
 from utils import log_info_request, log_resource_not_found, get_swagger_specification
+from backpressure.leaky_bucket_rabbitmq import LeakyBucketRabbitMQ
 
 courses_bp = Blueprint('courses_bp', __name__, url_prefix="/courses")
 
 spec = get_swagger_specification(path="courses", method="GET")
 @courses_bp.route("/", methods=["GET"])
+@LeakyBucketRabbitMQ.rate_limit_by_leaky_bucket(bucketcapacity=5)
 @log_info_request
 @swag_from(spec)
 def get_all_courses():

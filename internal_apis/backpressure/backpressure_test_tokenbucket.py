@@ -4,7 +4,7 @@ import pika
 import pytest
 import fakeredis
 from flask import Flask, jsonify
-from backpressure.token_bucket import LeakyBucket
+from backpressure.individual_leaky_bucket import LeakyBucket
 
 
 def mock_token_required_for_leaky_bucket(f):
@@ -23,15 +23,15 @@ def mock_token_required_for_leaky_bucket(f):
 
 @pytest.fixture(autouse=True)
 def patch_internal_token_required(monkeypatch):
-    # Ajuste este caminho para como 'token_required' é importado em 'token_bucket.py'
-    # Caminho comum se 'token_bucket.py' faz: from auth_service.auth_routes import token_required
+    # Ajuste este caminho para como 'token_required' é importado em 'individual_leaky_bucket.py'
+    # Caminho comum se 'individual_leaky_bucket.py' faz: from auth_service.auth_routes import token_required
     target_path = "backpressure.leaky_bucket.token_required"
     try:
         monkeypatch.setattr(target_path, mock_token_required_for_leaky_bucket)
         # print(f"Monkeypatch de '{target_path}' aplicado.")
     except AttributeError:
         # print(f"Falha ao aplicar monkeypatch em '{target_path}'. Tentando caminho alternativo...")
-        # Caminho comum se 'token_bucket.py' importa 'auth_service.auth_routes' e usa
+        # Caminho comum se 'individual_leaky_bucket.py' importa 'auth_service.auth_routes' e usa
         # @auth_service.auth_routes.token_required
         # Ou se o token_required está diretamente no módulo auth_routes e é importado
         alternative_target_path = "auth_service.auth_routes.token_required"
@@ -53,7 +53,7 @@ def fake_redis(monkeypatch):
     monkeypatch.setattr(LeakyBucket, "get_redis", staticmethod(lambda: r))
     return r
 
-#substituindo o get_redis original dentro do token_bucket.py (que pega o redis original) pela nossa funcao que pega o redis falso
+#substituindo o get_redis original dentro do individual_leaky_bucket.py (que pega o redis original) pela nossa funcao que pega o redis falso
 
 @pytest.fixture()
 def app(fake_redis):
