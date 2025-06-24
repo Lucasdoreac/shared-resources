@@ -1,5 +1,5 @@
 from datetime import datetime
-
+from auth_service.controller import AuthenticationController
 import redis
 import time
 from functools import wraps
@@ -14,6 +14,7 @@ class LeakyBucket:
         return redis.Redis.from_url("redis://localhost:6379/0")
 
     @staticmethod
+
     def individual_leaky_bucket(bucketcapacity, leakrate, keytimeout):
         def decorator(f):
             @wraps(f)
@@ -27,11 +28,11 @@ class LeakyBucket:
                     traceback.print_exc()
                     return jsonify({"status": "erro", "mensagem": "Erro ao conectar ao Redis"}), 500
 
-                user_token = request.headers.get('token') or request.args.get('token')
-                if not user_token:
-                    return jsonify({"message": "Missing authentication token"}), 403
-
-                key = f"leaky_bucket:{user_token}"
+                client_ip = request.headers.get('X-Forwarded-For', request.remote_addr)
+                if not client_ip:
+                    return jsonify({"message": "Não foi possível identificar o endereço de IP do cliente."}), 400
+                key = f"leaky_bucket:{client_ip}"
+                print(f"[DEBUG] IP da requisicao: {client_ip}")
                 now = time.time()
 
 

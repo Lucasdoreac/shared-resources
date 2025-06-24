@@ -4,6 +4,13 @@ from functools import wraps
 from .py_log import AppLogger, Logmessage, LogType
 
 
+def apiKey_log():
+    if request.headers.get("x-api-key"):
+        return request.headers.get("x-api-key")
+
+    else:
+        return ("No API: Key Provided")
+
 def log_resource_not_found(resource_type, parameter, value):
     AppLogger.log(
         Logmessage.RESOURCE_NOT_FOUND,
@@ -24,6 +31,7 @@ def log_info_request(func):
             ip_address=request.remote_addr,
             request_method=request.method,
             request_path=request.path,
+            api_key=apiKey_log()
         )
         return func(*args, **kwargs)
     return wrapper

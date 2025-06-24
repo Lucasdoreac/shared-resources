@@ -2,6 +2,7 @@ from flasgger import Swagger
 from flask import Flask, jsonify
 from mongoengine import connect
 from utils import log_error_request
+from utils import log_info_request
 from utils.cache import init_cache
 from .graphql import setup_graphql_routes
 from .restapi import setup_rest_routes
@@ -11,10 +12,6 @@ def create_app(config_class):
     app = Flask(__name__)
     LeakyBucketRabbitMQ.register_global_leaky_bucket(app, 5, 'global')
     app.config.from_object(config_class)
-
-
-
-
 
 
     init_cache(app)
@@ -76,4 +73,6 @@ def create_app(config_class):
         raise RuntimeError("This is a test error for 500 handler")
 
 
+
     return app
+

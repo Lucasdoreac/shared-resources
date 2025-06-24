@@ -1,7 +1,8 @@
 from flask import Blueprint, jsonify, request
 from flasgger import swag_from
-
+from internal_apis.src.utils.auth import check_api_key
 from DAL import Campus
+from auth_routes import token_required
 from utils import log_info_request, log_resource_not_found, get_swagger_specification
 from backpressure.individual_leaky_bucket import LeakyBucket
 
@@ -10,6 +11,7 @@ campus_bp = Blueprint('campus_bp', __name__, url_prefix="/campus")
 spec = get_swagger_specification(path="campus", method="GET")
 @campus_bp.route("/", methods=["GET"])
 @LeakyBucket.individual_leaky_bucket(bucketcapacity=2, leakrate=2, keytimeout=100)
+@check_api_key
 @log_info_request
 @swag_from(spec)
 def get_campus():

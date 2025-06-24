@@ -10,7 +10,7 @@ logging.basicConfig(level=logging.INFO, filename="py_log.log", filemode="a",
 
 
 class Logmessage(Enum):
-    REQUEST_INFO = "Method: {request_method} - Path: {request_path} - IP: {ip_address}"
+    REQUEST_INFO = "Method: {request_method} - Path: {request_path} - IP: {ip_address} - API Key: {api_key}"
     ERROR = "Message: {error_message} - Path: {request_path} - IP: {ip_address}"
     MISSING_CREDENTIALS = "Missing credentials: {request_method} - Path: {request_path} - IP: {ip_address}"
     INVALID_API_KEY = "Invalid API key: {request_method} - Path: {request_path} - IP: {ip_address} - API Key: {api_key}"
@@ -46,3 +46,4 @@ class AppLogger:
         }.get(log_type.value, logging.info)
 
         log_function(formatted_message)
+
