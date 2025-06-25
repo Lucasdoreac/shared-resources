@@ -10,7 +10,7 @@ API_KEY_LIST = config.API_KEY_LIST
 
 def validate_api_key(api_key):
     if api_key in API_KEY_LIST:
-        log_authentication_request(api_key)
+        #log_authentication_request(api_key)
         return True
     return False
 

@@ -50,7 +50,7 @@ Este projeto já está pronto para rodar os testes automatizados usando Docker, 
   ```
 - Rodar outro arquivo de teste:
   ```sh
-  docker compose run --rm tests poetry run pytest backpressure/backpressure_test_tokenbucket.py
+  docker compose run --rm tests poetry run pytest backpressure/test_individual_leaky_bucket.py
   ```
 
 ---

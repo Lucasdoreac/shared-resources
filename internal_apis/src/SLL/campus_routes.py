@@ -10,8 +10,7 @@ campus_bp = Blueprint('campus_bp', __name__, url_prefix="/campus")
 
 spec = get_swagger_specification(path="campus", method="GET")
 @campus_bp.route("/", methods=["GET"])
-@LeakyBucket.individual_leaky_bucket(bucketcapacity=2, leakrate=2, keytimeout=100)
-@check_api_key
+@LeakyBucket.individual_leaky_bucket(bucketcapacity=5, leakrate=0.7, keytimeout=25)
 @log_info_request
 @swag_from(spec)
 def get_campus():

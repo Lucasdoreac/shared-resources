@@ -10,7 +10,7 @@ from backpressure.leaky_bucket_rabbitmq import LeakyBucketRabbitMQ
 
 def create_app(config_class):
     app = Flask(__name__)
-    LeakyBucketRabbitMQ.register_global_leaky_bucket(app, 5, 'global')
+    LeakyBucketRabbitMQ.register_global_leaky_bucket(app, 125, 'global')
     app.config.from_object(config_class)
 
 

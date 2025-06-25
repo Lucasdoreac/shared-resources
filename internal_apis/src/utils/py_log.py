@@ -3,6 +3,7 @@ import logging.config
 from enum import Enum
 
 # Deactivate werkzeug logs
+#logging.getLogger('pika').setLevel(logging.WARNING)
 logging.getLogger('werkzeug').setLevel(logging.ERROR)
 
 logging.basicConfig(level=logging.INFO, filename="py_log.log", filemode="a",
@@ -10,7 +11,7 @@ logging.basicConfig(level=logging.INFO, filename="py_log.log", filemode="a",
 
 
 class Logmessage(Enum):
-    REQUEST_INFO = "Method: {request_method} - Path: {request_path} - IP: {ip_address} - API Key: {api_key}"
+    REQUEST_INFO = "Method: {request_method} - Path: {request_path} - IP: {ip_address} - API Key Informed: {api_key}"
     ERROR = "Message: {error_message} - Path: {request_path} - IP: {ip_address}"
     MISSING_CREDENTIALS = "Missing credentials: {request_method} - Path: {request_path} - IP: {ip_address}"
     INVALID_API_KEY = "Invalid API key: {request_method} - Path: {request_path} - IP: {ip_address} - API Key: {api_key}"

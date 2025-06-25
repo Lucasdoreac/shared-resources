@@ -13,7 +13,7 @@ def start_leaky_bucket_worker(leakrate, queue_name=None):
 
     connection, channel = create_rabbitmq_connection()
     channel.queue_delete(queue=queue_name)
-    channel.queue_declare(queue=queue_name, durable=True, arguments={'x-max-length': 5})
+    channel.queue_declare(queue=queue_name, durable=True, arguments={'x-max-length': 125})
 
     log_file_path = os.path.join(os.path.dirname(__file__), 'test_logs')
 
@@ -25,8 +25,8 @@ def start_leaky_bucket_worker(leakrate, queue_name=None):
                 f.write(body.decode() + "\n")
             channel.basic_ack(method_frame.delivery_tag)
         else:
-            print("Nenhuma mensagem na fila.")  # Log para depuração
-        time.sleep(leakrate)
+
+            time.sleep(leakrate)
 
 if __name__ == "__main__":
-    start_leaky_bucket_worker(1, queue_name='global')
+    start_leaky_bucket_worker(0.3, queue_name='global')
