@@ -10,7 +10,7 @@ from leaky_bucket_worker import start_leaky_bucket_worker
 def app():
     app = Flask(__name__)
 
-    apply_leakybucket = LeakyBucketRabbitMQ.rate_limit_by_leaky_bucket(
+    apply_leakybucket = LeakyBucketRabbitMQ.add_to_global_leaky_bucket(
         bucketcapacity=5, queue_name="test_queue")
 
     @app.route("/api/protected")
@@ -22,13 +22,13 @@ def app():
 
 @pytest.fixture(autouse=True)
 def start_queue(monkeypatch):
-    def mock_get_queue_name(name):
-        return 'test_queue'
+    #def mock_get_queue_name(name):
+   #     return 'test_queue'
 
-    monkeypatch.setattr('backpressure.rabbitmq_utils.get_leakybucket_queue_name', mock_get_queue_name)
+    #monkeypatch.setattr('backpressure.rabbitmq_utils.get_leakybucket_queue_name', mock_get_queue_name)
 
     worker_thread = threading.Thread(
-        target=start_leaky_bucket_worker, args=(1, "test_queue"), daemon=True
+        target=start_leaky_bucket_worker, args=(1, 5, "test_queue"), daemon=True
     )
     worker_thread.start()
 
@@ -36,7 +36,7 @@ def start_queue(monkeypatch):
 def clean_queue():
     credentials = pika.PlainCredentials('user', 'password')
     connection = pika.BlockingConnection(
-        pika.ConnectionParameters('rabbitmq', 5672, '/', credentials)
+        pika.ConnectionParameters('localhost', 5672, '/', credentials)
     )
     channel = connection.channel()
     channel.queue_delete(queue='test_queue')
@@ -71,7 +71,7 @@ def test_requests_leaks(client):
         assert response.status_code == 200
         print(f"Requisição {i + 1}: status {response.status_code}, resposta: {response.get_data(as_text=True)}")
     # Aguarde o vazamento de tokens
-    time.sleep(1)
+    time.sleep(1.1)
 
     # Requisição deve ser aceita novamente
     response = client.get("/api/protected")

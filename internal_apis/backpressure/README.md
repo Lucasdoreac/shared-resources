@@ -6,26 +6,27 @@ O algoritmo de Leaky Bucket é uma estratégia de controle de fluxo e limitaçã
 
 Neste projeto, existem dois tipos de buckets:
 
-### 1. Leaky Bucket Global (RabbitMQ)
+## 1. Leaky Bucket Global (RabbitMQ)
 - **Finalidade:** Limita o número total de requisições aceitas por todos os usuários em um determinado endpoint ou aplicação.
 - **Implementação:** Arquivo `leaky_bucket_rabbitmq.py`.
 - **Backend:** RabbitMQ (fila com tamanho máximo).
 - **Como usar:**
-  - Para aplicar globalmente a todos os endpoints Flask:
+  - O uso automático via `@request.before_request` foi removido por questões de segurança. Agora, o controle global deve ser adicionado **manualmente** em cada endpoint desejado, usando o decorator:
     ```python
     from backpressure.leaky_bucket_rabbitmq import LeakyBucketRabbitMQ
-    LeakyBucketRabbitMQ.register_global_leaky_bucket(app, bucketcapacity=10)
-    ```
-  - Para aplicar em um endpoint específico:
-    ```python
-    from backpressure.leaky_bucket_rabbitmq import LeakyBucketRabbitMQ
-    @LeakyBucketRabbitMQ.rate_limit_by_leaky_bucket(bucketcapacity=10)
+    @LeakyBucketRabbitMQ.add_to_global_leaky_bucket()
     def meu_endpoint():
         ...
     ```
-- **Configuração:** O parâmetro `bucketcapacity` define o número máximo de requisições simultâneas permitidas. O nome da fila pode ser customizado via `queue_name`.
+  - Os parâmetros do bucket global (capacidade, nome da fila, taxa de vazamento) **são definidos via variáveis de ambiente** no arquivo `.env`:
+    - `GLOBAL_BUCKET_SIZE`: capacidade máxima do bucket global (ex: 125)
+    - `GLOBAL_QUEUE_NAME`: nome da fila no RabbitMQ (ex: global)
+    - `GLOBAL_LEAK_RATE`: taxa de vazamento do bucket global (ex: 0.3)
+  - **Não é necessário passar parâmetros no decorator**. O sistema buscará as configurações automaticamente do `.env`.
 
-### 2. Leaky Bucket Individual (Redis)
+---
+
+## 2. Leaky Bucket Individual (Redis)
 - **Finalidade:** Limita o número de requisições por usuário (identificado por IP ou outro identificador).
 - **Implementação:** Arquivo `individual_leaky_bucket.py`.
 - **Backend:** Redis (armazenamento de tokens por IP).
@@ -40,103 +41,97 @@ Neste projeto, existem dois tipos de buckets:
   - `leakrate`: intervalo (em segundos) para "vazamento" de cada token.
   - `keytimeout`: tempo de expiração do registro no Redis (em segundos).
 
-## Como adicionar um bucket individual a uma requisição
-Basta adicionar o decorator `@LeakyBucket.individual_leaky_bucket(...)` ao endpoint desejado, conforme exemplo acima. O controle é feito por IP do cliente (ou pelo header `X-Forwarded-For`).
+---
 
-## Como mudar o bucket global
-Para alterar o bucket global, basta mudar o valor de `bucketcapacity` na chamada de `register_global_leaky_bucket` ou no decorator `@LeakyBucketRabbitMQ.rate_limit_by_leaky_bucket`.
+## Como adicionar os buckets aos endpoints
+- Para controle individual, adicione o decorator `@LeakyBucket.individual_leaky_bucket(...)` ao endpoint desejado.
+- Para controle global, adicione o decorator `@LeakyBucketRabbitMQ.add_to_global_leaky_bucket()` ao endpoint.
+- **Ordem recomendada:**
+  ```python
+  @LeakyBucketRabbitMQ.add_to_global_leaky_bucket()
+  @LeakyBucket.individual_leaky_bucket(...)
+  def meu_endpoint():
+      ...
+  ```
 
-Você também pode mudar o nome da fila (`queue_name`). **Atenção:**
-- O RabbitMQ não permite alterar os argumentos de uma fila já existente (por exemplo, mudar o `bucketcapacity` ou o argumento `x-max-length` de uma fila que já foi criada). Se tentar mudar o `bucketcapacity` para um valor diferente usando o mesmo `queue_name`, ocorrerá um erro do tipo `PRECONDITION_FAILED`.
-- Se você mudar o `queue_name` para um nome novo, uma nova fila será criada normalmente. Se usar um nome já existente, os argumentos devem ser compatíveis.
+## ATENÇÃO CRÍTICA SOBRE ORDEM DOS DECORATORS
+> **IMPORTANTE:** Caso você utilize **os dois sistemas de leaky bucket juntos** (global e individual) em um mesmo endpoint, **O DECORATOR DO INDIVIDUAL LEAKY BUCKET DEVE SER SEMPRE O PRIMEIRO** (ou seja, deve estar mais "próximo" da função do endpoint) e o decorator do global leaky bucket deve vir depois.
+>
+> **Exemplo correto:**
+> ```python
+> @LeakyBucketRabbitMQ.add_to_global_leaky_bucket()
+> @LeakyBucket.individual_leaky_bucket(...)
+> def meu_endpoint():
+>     ...
+> ```
+>
+> **Se a ordem for invertida, podem ocorrer graves vulnerabilidades de rate limiting, permitindo que usuários burlem o controle global!**
+>
+> **NUNCA inverta essa ordem!**
 
-### Erros comuns ao mudar bucketcapacity ou queue_name
-- **PRECONDITION_FAILED:**
-  - Ocorre quando tenta-se declarar uma fila RabbitMQ com o mesmo nome (`queue_name`) mas com argumentos diferentes (ex: mudou o `bucketcapacity`).
-  - Solução: Use um novo nome de fila (`queue_name`) ou exclua a fila antiga manualmente no RabbitMQ antes de mudar o argumento.
-    - Para excluir uma fila manualmente pelo terminal, execute:
-      ```sh
-      docker exec -it <nome_do_container_rabbitmq> rabbitmqctl delete_queue <nome_da_fila>
-      ```
-      Substitua `<nome_do_container_rabbitmq>` pelo nome do seu container RabbitMQ (ex: `rabbitmq`) e `<nome_da_fila>` pelo nome da fila que deseja remover.
-- **Fila "presa" com configuração antiga:**
-  - Se você rodou testes ou subiu o sistema com um `bucketcapacity` e depois mudou o valor, a fila antiga pode continuar existindo com a configuração anterior, causando erros.
-  - Solução: Limpe as filas antigas no RabbitMQ ou sempre use nomes de fila únicos para cada configuração.
-- **Erros de conexão:**
-  - Certifique-se de que o RabbitMQ está rodando e acessível. Erros de conexão podem aparecer como `ConnectionRefusedError` ou similares.
+---
 
-#### Recomendações
-- Sempre que mudar o `bucketcapacity`, prefira mudar também o `queue_name` para evitar conflitos.
-- Para ambientes de teste, use nomes de fila exclusivos ou limpe as filas antigas antes de rodar novamente.
+## Configuração do sistema global via .env
+- As informações da fila global do leaky bucket são definidas no arquivo `.env` na raiz do projeto:
+  ```env
+  GLOBAL_BUCKET_SIZE=125
+  GLOBAL_QUEUE_NAME=global
+  GLOBAL_LEAK_RATE=0.3
+  ```
+- Para alterar a capacidade, nome da fila ou taxa de vazamento, basta editar o `.env` e reiniciar o serviço.
+- **Atenção:** O RabbitMQ não permite alterar argumentos de uma fila já existente. Se mudar o `GLOBAL_BUCKET_SIZE` ou outros argumentos, altere também o `GLOBAL_QUEUE_NAME` para evitar conflitos, ou exclua a fila antiga manualmente.
+
+---
+
+# Testes automatizados
+
+## Estrutura dos testes
+Os testes automatizados do sistema de backpressure estão localizados em:
+- `backpressure/test_global_leaky_bucket.py` (testes do bucket global)
+- `backpressure/test_individual_leaky_bucket.py` (testes do bucket individual)
+
+Os testes cobrem cenários de limite, vazamento, bloqueio e funcionamento dos buckets.
+
+## Como rodar os testes
+
+### Pré-requisitos
+- Python 3.11+ instalado localmente.
+- Instale as dependências do projeto com Poetry:
+  ```sh
+  poetry install
+  ```
+- O serviço do RabbitMQ deve estar rodando em um container Docker (ou localmente) e acessível conforme as configurações do `.env`.
+- O Redis **não é necessário**: os testes usam `fakeredis` (mock em memória).
+
+### Rodando testes pelo PyCharm (recomendado)
+- Você pode rodar qualquer teste individualmente pelo próprio PyCharm, clicando no ícone de execução (▶️) que aparece ao lado da função de teste ou do nome do arquivo de teste.
+- Certifique-se de que o interpretador Python do PyCharm está configurado para usar o ambiente virtual criado pelo Poetry (ou o Python correto).
+- O RabbitMQ deve estar rodando normalmente em Docker.
+
+### Rodando os testes com o poetry via terminal
+1. Certifique-se de que o RabbitMQ está rodando (exemplo usando Docker Compose):
+   ```sh
+   docker compose up -d rabbitmq
+   ```
+2. Execute os testes (com Poetry):
+   ```sh
+   poetry run pytest backpressure/
+   ```
+3. Para rodar um teste específico:
+   ```sh
+   poetry run pytest backpressure/test_global_leaky_bucket.py::test_nome_do_teste
+   ```
+   Substitua pelo nome do arquivo e da função de teste desejada.
+
+
+### Dicas
+- Não é necessário rodar nenhum container de testes, apenas o RabbitMQ.
+- Se mudar as configurações do `.env`, reinicie o RabbitMQ e os testes.
 - Consulte os logs do sistema para mensagens de erro detalhadas.
 
-## Onde cada bucket está implementado
-- **Leaky Bucket Global:** `backpressure/leaky_bucket_rabbitmq.py`
-- **Leaky Bucket Individual:** `backpressure/individual_leaky_bucket.py`
 
-## Como rodar os testes do backpressure no Docker
-
-Este projeto já está pronto para rodar os testes automatizados usando Docker, sem necessidade de instalar dependências Python, RabbitMQ ou Redis manualmente.
-
-### Passos rápidos:
-
-1. **Tenha o Docker e Docker Compose instalados**
-   - [Download Docker Desktop](https://www.docker.com/products/docker-desktop)
-
-2. **Abra o terminal na raiz do projeto** (onde está o arquivo `docker-compose.yml`).
-
-3. **Construa a imagem de testes (apenas na primeira vez ou quando mudar dependências):**
-   ```sh
-   docker compose build tests
-   ```
-
-4. **Execute todos os testes do backpressure:**
-   ```sh
-   docker compose run --rm tests poetry run pytest backpressure/
-   ```
-
-5. **Para rodar um teste específico:**
-   ```sh
-   docker compose run --rm tests poetry run pytest backpressure/test_global_leaky_bucket.py::test_requests_leaks
-   ```
-   > Substitua pelo nome do arquivo e da função de teste desejada.
-
----
-
-## Dicas e observações
-- Não é necessário instalar Python, Poetry, RabbitMQ ou Redis localmente.
-- O comando de build pode demorar na primeira vez, pois instala todas as dependências.
-- Para rodar novamente os testes, basta repetir o comando do passo 4 ou 5 (sem precisar rebuildar, a não ser que mude dependências).
-- Se adicionar novas dependências Python, rode novamente o passo 3.
-- Se quiser rodar outros arquivos de teste, basta trocar o caminho no comando do passo 5.
-
----
-
-## Exemplo de comandos úteis
-
-- Rodar todos os testes:
-  ```sh
-  docker compose run --rm tests poetry run pytest backpressure/
-  ```
-- Rodar um teste específico:
-  ```sh
-  docker compose run --rm tests poetry run pytest backpressure/test_global_leaky_bucket.py::test_requests_above_limit
-  ```
-- Rodar outro arquivo de teste:
-  ```sh
-  docker compose run --rm tests poetry run pytest backpressure/test_individual_leaky_bucket.py
-  ```
-
----
-
-## Como testar o Individual Leaky Bucket
-
-Para testar o bucket individual (Redis), utilize os testes automatizados já presentes no projeto:
-
-```sh
-docker compose run --rm tests poetry run pytest backpressure/test_individual_leaky_bucket.py
-```
-
-Você também pode criar requisições manuais para o endpoint protegido pelo decorator `@LeakyBucket.individual_leaky_bucket` e observar o bloqueio após exceder o limite configurado.
-
-Se tiver qualquer problema, confira se o Docker está rodando e se você está na pasta correta. Para dúvidas ou erros, consulte este README ou peça ajuda ao time!
+## Observações finais
+- O sistema de backpressure é fundamental para garantir a resiliência da API.
+- Sempre respeite a ordem dos decorators para evitar vulnerabilidades.
+- Mantenha o `.env` atualizado conforme a configuração desejada do bucket global.
+- Para dúvidas ou problemas, consulte este README ou peça suporte ao time.

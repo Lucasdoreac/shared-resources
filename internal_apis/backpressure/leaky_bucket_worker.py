@@ -5,7 +5,7 @@ from backpressure.rabbitmq_utils import get_leakybucket_queue_name
 from flask import request
 import os
 
-def start_leaky_bucket_worker(leakrate, queue_name=None):
+def start_leaky_bucket_worker(leakrate, bucketcapacity, queue_name=None):
     if queue_name is None:
         queue_name = get_leakybucket_queue_name()
 
@@ -13,7 +13,7 @@ def start_leaky_bucket_worker(leakrate, queue_name=None):
 
     connection, channel = create_rabbitmq_connection()
     channel.queue_delete(queue=queue_name)
-    channel.queue_declare(queue=queue_name, durable=True, arguments={'x-max-length': 125})
+    channel.queue_declare(queue=queue_name, durable=True, arguments={'x-max-length': bucketcapacity})
 
     log_file_path = os.path.join(os.path.dirname(__file__), 'test_logs')
 
@@ -29,4 +29,5 @@ def start_leaky_bucket_worker(leakrate, queue_name=None):
             time.sleep(leakrate)
 
 if __name__ == "__main__":
-    start_leaky_bucket_worker(0.3, queue_name='global')
+    start_leaky_bucket_worker(0.3, 125, queue_name='global')
+

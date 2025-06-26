@@ -5,12 +5,14 @@ from DAL import Campus
 from auth_routes import token_required
 from utils import log_info_request, log_resource_not_found, get_swagger_specification
 from backpressure.individual_leaky_bucket import LeakyBucket
+from backpressure.leaky_bucket_rabbitmq import LeakyBucketRabbitMQ
 
 campus_bp = Blueprint('campus_bp', __name__, url_prefix="/campus")
 
 spec = get_swagger_specification(path="campus", method="GET")
 @campus_bp.route("/", methods=["GET"])
-@LeakyBucket.individual_leaky_bucket(bucketcapacity=5, leakrate=0.7, keytimeout=25)
+@LeakyBucket.individual_leaky_bucket(bucketcapacity=2, leakrate=5, keytimeout=25)
+@LeakyBucketRabbitMQ.add_to_global_leaky_bucket()
 @log_info_request
 @swag_from(spec)
 def get_campus():

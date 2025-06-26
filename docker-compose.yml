@@ -42,25 +42,6 @@ services:
       timeout: 10s
       retries: 5
 
-  #tests:
-    #build:
-      #context: ./internal_apis
-      #dockerfile: Dockerfile.tests
-    #image: shared-resources-tests:latest
-    #depends_on:
-     # - rabbitmq
-    #  - redis-local
-    #volumes:
-    ##  - ./internal_apis/pyproject.toml:/app/pyproject.toml
-    #  - ./internal_apis/poetry.lock:/app/poetry.lock
-    #working_dir: /app/internal_apis
-   # command: >
-   #   sh -c "pip install poetry && poetry install && poetry run pytest backpressure/backpressure_leaky_bucket_test.py"
-   # environment:
-   #   - RABBITMQ_HOST=rabbitmq
-   #   - RABBITMQ_USER=user
-   #   - RABBITMQ_PASS=password
-
 volumes:
   redis-data:
     driver: local

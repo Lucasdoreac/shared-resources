@@ -7,44 +7,6 @@ from flask import Flask, jsonify
 from backpressure.individual_leaky_bucket import LeakyBucket
 
 
-def mock_token_required_for_leaky_bucket(f):
-    @wraps(f)
-    def decorated_mock(*args, **kwargs):
-        # print(f"MOCK_TOKEN_REQUIRED para {f.__name__} EXECUTADO")
-        # Simula que o token é válido. Se sua rota/lógica dentro do LeakyBucket
-        # depende de algo como g.user injetado pelo token_required real,
-        # você precisaria simular isso aqui.
-        # Ex:
-        # from flask import g
-        # token_no_header = request.headers.get('token')
-        # g.user = {"id": token_no_header if token_no_header else "mock_user_id"}
-        return f(*args, **kwargs)
-    return decorated_mock
-
-#@pytest.fixture(autouse=True)
-#def patch_internal_token_required(monkeypatch):
-    # Ajuste este caminho para como 'token_required' é importado em 'individual_leaky_bucket.py'
-    # Caminho comum se 'individual_leaky_bucket.py' faz: from auth_service.auth_routes import token_required
-    #target_path = "backpressure.leaky_bucket.token_required"
-    #try:
-       # monkeypatch.setattr(target_path, mock_token_required_for_leaky_bucket)
-        # print(f"Monkeypatch de '{target_path}' aplicado.")
-    #except AttributeError:
-        # print(f"Falha ao aplicar monkeypatch em '{target_path}'. Tentando caminho alternativo...")
-        # Caminho comum se 'individual_leaky_bucket.py' importa 'auth_service.auth_routes' e usa
-        # @auth_service.auth_routes.token_required
-        # Ou se o token_required está diretamente no módulo auth_routes e é importado
-        #alternative_target_path = "auth_service.auth_routes.token_required"
-        #try:
-         #   monkeypatch.setattr(alternative_target_path, mock_token_required_for_leaky_bucket)
-            # print(f"Monkeypatch de '{alternative_target_path}' aplicado.")
-       # except AttributeError as e:
-       #     print(f"ERRO: Falha ao aplicar monkeypatch para token_required em ambos os caminhos: {target_path}, {alternative_target_path}. Detalhes: {e}")
-       #     print("Os testes podem falhar ou dar erro 500 se o token_required real for chamado e falhar.")
-
-#bypass do token_required para o teste com o objetivo de acelerar e simplificar a execução dos testes
-
-
 @pytest.fixture
 def fake_redis(monkeypatch):
     r = fakeredis.FakeStrictRedis(decode_responses=True)

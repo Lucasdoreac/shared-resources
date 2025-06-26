@@ -1,3 +1,4 @@
+import os
 import time
 import traceback
 from functools import wraps
@@ -48,10 +49,11 @@ class LeakyBucketRabbitMQ:
                 raise
 
     @staticmethod
-    def rate_limit_by_leaky_bucket(bucketcapacity, queue_name=None):
+    def add_to_global_leaky_bucket(bucketcapacity=int(os.getenv('GLOBAL_BUCKET_SIZE')), queue_name=os.getenv('GLOBAL_QUEUE_NAME')):
         def decorator(f):
             @wraps(f)
             def wrapped(*args, **kwargs):
+
                 try:
                     current_queue = queue_name or rabbitmq_utils.get_leakybucket_queue_name()
                     connection, channel = LeakyBucketRabbitMQ._get_persistent_connection()
@@ -77,23 +79,3 @@ class LeakyBucketRabbitMQ:
             return wrapped
         return decorator
 
-    @staticmethod
-    def register_global_leaky_bucket(app, bucketcapacity, queue_name=None):
-        """
-        Registra o rate limit do leaky bucket globalmente para todos os endpoints do Flask.
-        Pode ser chamado no setup do app, sem afetar o uso do decorator em testes.
-        """
-
-        @app.before_request
-        def global_leaky_bucket():
-            decorator = LeakyBucketRabbitMQ.rate_limit_by_leaky_bucket(bucketcapacity, queue_name)
-
-            # Função dummy apenas para aplicar o decorator
-            @decorator
-            def dummy():
-                return None
-
-            resp = dummy()
-            if resp is not None:
-                return resp
-            return None

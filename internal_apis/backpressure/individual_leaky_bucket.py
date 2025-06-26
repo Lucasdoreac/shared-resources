@@ -59,17 +59,15 @@ class LeakyBucket:
                     try:
                         r.hset(name=key, mapping={"tokens": tokens, "last_access": now})
                         r.expire(key, keytimeout)
-                      #  print(f"[INFO] Requisição aceita. Tokens agora: {tokens}")
                         return f(*args, **kwargs)
                     except Exception as e:
-                      #  print("[ERRO] Falha ao atualizar Redis:", e)
                         traceback.print_exc()
                         return jsonify({"status": "erro", "mensagem": "Erro ao atualizar Redis"}), 500
                 else:
-                  #  print("[INFO] Bucket cheio. Requisição bloqueada.")
+                    # Sinaliza para o before_request do global não processar
+                    request._leaky_bucket_individual_blocked = True
                     return jsonify({"status": "error", "message": "Request limit exceeded!"}), 429
 
+            wrapped._has_individual_leaky_bucket = True
             return wrapped
         return decorator
-
-

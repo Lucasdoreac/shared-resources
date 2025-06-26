@@ -3,7 +3,7 @@ import logging.config
 from enum import Enum
 
 # Deactivate werkzeug logs
-#logging.getLogger('pika').setLevel(logging.WARNING)
+logging.getLogger('pika').setLevel(logging.WARNING)
 logging.getLogger('werkzeug').setLevel(logging.ERROR)
 
 logging.basicConfig(level=logging.INFO, filename="py_log.log", filemode="a",
