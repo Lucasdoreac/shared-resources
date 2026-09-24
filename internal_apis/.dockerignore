@@ -1,0 +1,11 @@
+# O Dockerfile faz COPY . . : sem isto, segredos e lixo local iam para a imagem.
+# Teste: test_image_contents.py (roda dentro da imagem, dev-local/run-tests.sh).
+.env
+.env.*
+!.env.example
+.idea
+.vscode
+*.log
+__pycache__
+**/__pycache__
+.pytest_cache
