@@ -14,10 +14,12 @@ def mongo_connection():
 
 @pytest.fixture
 def mock_courses(mongo_connection):
+    # `code` é obrigatório no modelo (DAL/models.py) e faltava aqui --
+    # estourava ValidationError: Field is required: ['code'].
     courses = [
-        models.Course(id=1, name="Engenharia de Software"),
-        models.Course(id=2, name="Ciência da Computação"),
-        models.Course(id=3, name="Sistemas Operacionais"),
+        models.Course(id=1, code="ENG101", name="Engenharia de Software"),
+        models.Course(id=2, code="CC101", name="Ciência da Computação"),
+        models.Course(id=3, code="SO101", name="Sistemas Operacionais"),
     ]
 
 
