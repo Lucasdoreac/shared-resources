@@ -1,0 +1,76 @@
+import pytest
+from flask import Flask
+
+import auth_routes
+
+EMAIL = "prof@udf.edu.br"
+
+
+class FakeController:
+    generate_hash = "hash-123"
+
+    def insert_token(self, email, hash_auth):
+        pass
+
+
+class Sent:
+    status_code = 200
+
+
+@pytest.fixture
+def client(monkeypatch):
+    sent = []
+    monkeypatch.setattr(auth_routes, "AuthenticationController", FakeController)
+    monkeypatch.setattr(auth_routes, "send_magic_link", lambda *args: sent.append(args) or Sent())
+    monkeypatch.setenv("REACT_APP", "http://front")
+    for name in ("FLASK_ENV", "AUTH_DEV_RETURN_LINK"):
+        monkeypatch.delenv(name, raising=False)
+    app = Flask(__name__)
+    app.register_blueprint(auth_routes.auth_bp)
+    test_client = app.test_client()
+    test_client.sent = sent
+    return test_client
+
+
+def send_link(client):
+    return client.post(f"/auth/send-link?email={EMAIL}")
+
+
+def test_development_alone_does_not_return_the_login_link(client, monkeypatch):
+    # Antes, FLASK_ENV=development bastava para o link de login voltar na
+    # resposta HTTP: um deploy com o .env de dev deixava qualquer um entrar
+    # como qualquer @udf.edu.br. Agora é preciso ligar AUTH_DEV_RETURN_LINK.
+    monkeypatch.setenv("FLASK_ENV", "development")
+
+    response = send_link(client)
+
+    assert response.status_code == 201
+    assert "magic_link" not in response.get_json()
+    assert [args[0] for args in client.sent] == [EMAIL]
+
+
+def test_link_returned_only_in_development_with_the_flag_on(client, monkeypatch):
+    monkeypatch.setenv("FLASK_ENV", "development")
+    monkeypatch.setenv("AUTH_DEV_RETURN_LINK", "true")
+
+    response = send_link(client)
+
+    assert response.get_json() == {"magic_link": f"http://front/auth/callback?email={EMAIL}&hash=hash-123"}
+    assert client.sent == []
+
+
+@pytest.mark.parametrize("flask_env, flag", [
+    ("production", "true"),   # flag esquecida ligada em produção
+    (None, "true"),           # FLASK_ENV ausente = produção
+    ("development", "false"),
+    ("development", "0"),
+])
+def test_otherwise_the_link_goes_by_email(client, monkeypatch, flask_env, flag):
+    if flask_env:
+        monkeypatch.setenv("FLASK_ENV", flask_env)
+    monkeypatch.setenv("AUTH_DEV_RETURN_LINK", flag)
+
+    response = send_link(client)
+
+    assert response.get_json() == {"message": "Magic link sent successfully"}
+    assert len(client.sent) == 1

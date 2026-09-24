@@ -47,6 +47,16 @@ def token_required(f):
     return decorated_function
 
 
+def return_link_in_response():
+    """
+    Só em desenvolvimento, e só se pedido: o link de login volta na resposta
+    em vez de ir por e-mail. Antes bastava FLASK_ENV=development, e um deploy
+    com o .env de dev deixava qualquer um entrar como qualquer @udf.edu.br.
+    """
+    return (os.getenv('FLASK_ENV') == 'development'
+            and os.getenv('AUTH_DEV_RETURN_LINK', '').strip().lower() in ('1', 'true', 'yes', 'on'))
+
+
 def send_magic_link(email, username, magic_link):
     """
     Sends an email with a magic link for login.
@@ -108,7 +118,7 @@ class AuthRoutes:
 
         # Send the magic link via email
         magic_link = f"{os.getenv('REACT_APP')}/auth/callback?email={email}&hash={hash_auth}"
-        if os.getenv('FLASK_ENV') == 'development':
+        if return_link_in_response():
             return jsonify({'magic_link': magic_link}), 201
         try:
             send_response = send_magic_link(email, email.split('@')[0], magic_link)
@@ -117,20 +127,6 @@ class AuthRoutes:
         except Exception as e:
             return jsonify({'error': str(e)}), 503
 
-
-        return jsonify({'message': 'Magic link sent successfully'}), 201
-
-
-        # Send the magic link via email
-        magic_link = f"{os.getenv('REACT_APP')}/auth/callback?email={email}&hash={hash_auth}"
-        if os.getenv('FLASK_ENV') == 'development':
-            return jsonify({'magic_link': magic_link}), 201
-        try:
-            send_response = send_magic_link(email, email.split('@')[0], magic_link)
-            if send_response.status_code != 200:
-                return jsonify({'error': 'Email sender service unavailable: failed to send email'}), 503
-        except Exception as e:
-            return jsonify({'error': str(e)}), 503
 
         return jsonify({'message': 'Magic link sent successfully'}), 201
 
