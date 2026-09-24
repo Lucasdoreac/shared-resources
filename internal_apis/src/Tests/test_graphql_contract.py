@@ -27,6 +27,7 @@ QUERIES = {
     "teachers_por_nome": 'query{ teachers(search: "Ana") { name id } }',
     "teachers_todos": "query{ teachers { name id } }",
     "rooms_todas": "query{ rooms{ name campus{ name id } } }",
+    "offers_por_dia": "query{ offers(searchWeekday: 3, searchYear: 2026, searchSemester: 2) { room { id } period { name } } }",
     "campus": "query { campus { id name } }",
     "types_todos": "query{ types{ collection types { id name } } }",
     "types_por_colecao": 'query{ types(search: "ODS"){ collection types{ name type } } }',
@@ -52,9 +53,9 @@ def catalog():
     models.Teacher(id="t1", name="Ana Souza", course=[31], email="ana@udf.edu.br").save()
     models.Teacher(id="t2", name="Bruno Lima", course=[39]).save()
     models.Offer(discipline=101, period="p1", campus="c1", room="r1", teacher="t1", total_enrolled=30,
-                 total_optatives_enrolled=0, year=2026, semester=2, offer_id=1).save()
+                 total_optatives_enrolled=0, year=2026, semester=2, offer_id=1, weekdays=[3]).save()
     models.Offer(discipline=102, period="p2", campus="c2", room="r2", teacher="t2", total_enrolled=20,
-                 total_optatives_enrolled=0, year=2026, semester=2, offer_id=2).save()
+                 total_optatives_enrolled=0, year=2026, semester=2, offer_id=2, weekdays=[1]).save()
     models.Type(id=1, collection="ODS", types=[models.TypeDetail(id=3, name="Saúde", type="ods")]).save()
     models.Type(id=2, collection="eventTypes", types=[models.TypeDetail(id=1, name="Palestra", type="lecture")]).save()
     yield

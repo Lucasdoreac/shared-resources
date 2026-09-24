@@ -315,6 +315,13 @@ def get_swagger_specification(path, method=None):
                     "required": False,
                     "type": "string"
                 },
+                {
+                    "name": "weekday",
+                    "in": "query",
+                    "description": "Filtra ofertas com aula nesse dia da semana (ISO 8601: 1 = segunda ... 7 = domingo)",
+                    "required": False,
+                    "type": "integer"
+                },
 
                 # Carregar retorno dos parâmetros sobre paginação
                 *pagination_parameters()
@@ -340,7 +347,8 @@ def get_swagger_specification(path, method=None):
                                         "total_optatives_enrolled": {"type": "integer"},
                                         "year": {"type": "integer"},
                                         "semester": {"type": "integer"},
-                                        "offer_id": {"type": "integer"}
+                                        "offer_id": {"type": "integer"},
+                                        "weekdays": {"type": "array", "items": {"type": "integer"}}
                                     }
                                 }
                             },
@@ -384,7 +392,7 @@ def get_swagger_specification(path, method=None):
                     "required": True,
                     "schema": {
                         "type": "object",
-                        "required": ["campus", "discipline", "period", "room", "teacher", "total_enrolled"],
+                        "required": ["campus", "discipline", "period", "room", "teacher", "total_enrolled", "offer_id"],
                         "properties": {
                             "campus": {"type": "string", "description": "ID do campus"},
                             "discipline": {"type": "string", "description": "ID da disciplina"},
@@ -393,7 +401,12 @@ def get_swagger_specification(path, method=None):
                             "teacher": {"type": "string", "description": "ID do professor"},
                             "total_enrolled": {"type": "integer", "description": "Número total de matriculados"},
                             "total_optatives_enrolled": {"type": "integer", "description": "Número total de matriculados em optativas"},
-                            "offer_id": {"type": "integer", "description": "ID da oferta"}
+                            "offer_id": {"type": "integer", "description": "ID da oferta"},
+                            "weekdays": {
+                                "type": "array",
+                                "items": {"type": "integer", "minimum": 1, "maximum": 7},
+                                "description": "Dias da semana da aula (ISO 8601: 1 = segunda ... 7 = domingo). Opcional; sem dia a oferta não bloqueia sala no Reservas."
+                            }
                         }
                     }
                 }

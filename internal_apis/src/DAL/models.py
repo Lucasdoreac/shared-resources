@@ -63,6 +63,9 @@ class Offer(Document):
     year = IntField(required=True, db_field='ANO')
     semester = IntField(required=True, db_field='SEMESTRE')
     offer_id = IntField(required=True, db_field='ID_OFERT')
+    # Dias da semana da aula, ISO 8601 (1 = segunda ... 7 = domingo). Vem do
+    # calendário acadêmico; vazio = oferta ainda sem dia (não bloqueia sala).
+    weekdays = ListField(IntField(min_value=1, max_value=7), default=list, db_field='DIAS_SEMANA')
 
 
     def fetch_entity(loader, model, identifier, name_field="name"):

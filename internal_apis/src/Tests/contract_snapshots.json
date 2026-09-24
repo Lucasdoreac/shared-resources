@@ -49,6 +49,21 @@
     },
     "errors": []
   },
+  "offers_por_dia": {
+    "data": {
+      "offers": [
+        {
+          "period": {
+            "name": "NOITE"
+          },
+          "room": {
+            "id": "r1"
+          }
+        }
+      ]
+    },
+    "errors": []
+  },
   "periods": {
     "data": {
       "periods": [
