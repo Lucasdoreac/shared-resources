@@ -3,7 +3,7 @@ name = "auth-service"
 version = "0.1.0"
 description = "serviço de autenticação para o cluster do LabTech"
 authors = ["Danrley Pereira <danrleywillian@gmail.com>"]
-readme = "README.md"
+readme = "deployment.md"
 
 [tool.poetry.dependencies]
 python = "^3.12"
