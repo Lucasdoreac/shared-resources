@@ -1,3 +1,4 @@
+import hashlib
 import logging
 import logging.config
 from enum import Enum
@@ -7,6 +8,13 @@ logging.getLogger('werkzeug').setLevel(logging.ERROR)
 
 logging.basicConfig(level=logging.INFO, filename="py_log.log", filemode="a",
                     format="%(asctime)s - %(levelname)s - %(message)s")
+
+
+def mask_secret(value) -> str:
+    """Impressão digital curta: correlaciona linhas do log sem expor a chave."""
+    if not value:
+        return "-"
+    return "sha256:" + hashlib.sha256(str(value).encode()).hexdigest()[:8]
 
 
 class Logmessage(Enum):
@@ -31,6 +39,8 @@ class AppLogger:
 
     @staticmethod
     def log(message: Logmessage, log_type: LogType, **kwargs):
+        if "api_key" in kwargs:
+            kwargs["api_key"] = mask_secret(kwargs["api_key"])
         try:
             formatted_message = message.value.format(**kwargs)
         except KeyError as e:
