@@ -1,9 +1,8 @@
 # Configuração do shared-resources (auth_service e internal_apis)
 
 Cada serviço tem seu `.env.example` com exatamente as variáveis que o código lê.
-No internal_apis isso é garantido por teste (`src/Tests/test_env_example.py`); o
-auth_service não tem suíte de testes, então a conferência foi feita pela mesma leitura
-da AST, à mão (24/09/2026).
+Garantido por teste nos dois: `internal_apis/src/Tests/test_env_example.py` e
+`auth_service/tests/test_env_example.py` (`dev-local/run-tests.sh internal|auth`).
 
 Coluna **Prod**: ✅ obrigatória em produção · ⚠️ tem padrão que não serve em produção · — opcional.
 
@@ -11,7 +10,8 @@ Coluna **Prod**: ✅ obrigatória em produção · ⚠️ tem padrão que não s
 
 | Variável | Prod | Exemplo | Para que serve | Se faltar |
 |---|---|---|---|---|
-| `FLASK_ENV` | ⚠️ **nunca `development`** | `production` | Com `development`, `POST /auth/send-link` **devolve o link de login na resposta**, sem e-mail. | Vale `production` (envia e-mail). |
+| `FLASK_ENV` | — | `production` | `development` é pré-requisito para `AUTH_DEV_RETURN_LINK`. | Vale `production`. |
+| `AUTH_DEV_RETURN_LINK` | ⚠️ **nunca `true`** | `false` | Com `true` **e** `FLASK_ENV=development`, `POST /auth/send-link` devolve o link de login na resposta, sem e-mail (usado no dev-local e nos testes de tela). | Vale `false`: o link vai por e-mail. |
 | `REACT_APP` | ✅ | `https://reservas.exemplo` | Endereço público do frontend: base do link de login. | Link vira `None/auth/callback?...` e não abre. |
 | `MONGO_URI` ou `MONGO_HOST`/`MONGO_USERNAME`/`MONGO_PASSWORD` | ✅ | — | MongoDB (tokens de login). | Não conecta. |
 | `MONGO_DATABASE` | ✅ | `rooms-reservation-app` | Banco. | Falha ao gravar o token. |
@@ -30,9 +30,8 @@ Coluna **Prod**: ✅ obrigatória em produção · ⚠️ tem padrão que não s
 | `SERVER_NAME` | — | `catalogo.exemplo` | Host público do Flask. | Aceita qualquer `Host`. |
 
 ## Problemas conhecidos
-- **Login aberto em modo development** (acima): o valor de `FLASK_ENV` decide, sozinho, se
-  o link de login vai por e-mail ou volta na resposta. Um deploy com o `.env.example` de dev
-  deixa qualquer pessoa entrar como qualquer e-mail `@udf.edu.br`. Melhor seria uma variável
-  própria e desligada por padrão; registrado no backlog.
+- ~~Login aberto em modo development~~ **resolvido:** antes bastava `FLASK_ENV=development`
+  para o link de login voltar na resposta; agora exige também `AUTH_DEV_RETURN_LINK=true`,
+  desligada por padrão e ligada só no dev-local.
 - **Catálogo aberto:** só o `POST /offers` pede `x-api-key`; todos os GET (inclui professores)
   respondem a quem alcança a porta. PR #26 (backpressure/API key) trata parte disso.
