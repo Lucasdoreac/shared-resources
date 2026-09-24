@@ -18,7 +18,7 @@ class Config:
     API_KEY_LIST = os.getenv("API_KEY_LIST").split(",")
 
     SERVER_HOST = "0.0.0.0"
-    SERVER_NAME = os.getenv("SERVER_NAME", "localhost:5081")
+    SERVER_NAME = os.getenv("SERVER_NAME") or None
 
 
 class DevelopmentConfig(Config):
