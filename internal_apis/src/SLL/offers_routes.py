@@ -61,6 +61,10 @@ def get_offers():
     if offer_id:
         return filter_entity("offer_id", offer_id)
 
+    weekday = request.args.get("weekday", type=int)
+    if weekday:
+        return filter_entity("weekdays", weekday)
+
 
     offers_queryset = Offer.objects()
 
@@ -72,6 +76,9 @@ spec_post = get_swagger_specification(path="offers", method="POST")
 @swag_from(spec_post)
 def create_offer():
     data = request.get_json()
+    weekdays = data.get("weekdays", [])
+    if not valid_weekdays(weekdays):
+        return jsonify({"error": "weekdays must be a list of integers from 1 (Monday) to 7 (Sunday)"}), 400
     try:
         # Validar e buscar entidades relacionadas
         campus = get_entity(Campus, data["campus"])
@@ -95,6 +102,8 @@ def create_offer():
             total_optatives_enrolled=data["total_optatives_enrolled"] if "total_optatives_enrolled" in data else 0,
             year=datetime.date.today().year,
             semester=1 if datetime.date.today().month < 7 else 2,
+            offer_id=data["offer_id"],
+            weekdays=weekdays,
         )
         offer.save()
 
@@ -102,6 +111,15 @@ def create_offer():
 
     except (KeyError) as e:
         return jsonify({"error": str(e)}), 400
+
+
+def valid_weekdays(weekdays):
+    """
+    ISO 8601 weekdays: 1 = Monday ... 7 = Sunday.
+    """
+    return isinstance(weekdays, list) and all(
+        isinstance(day, int) and not isinstance(day, bool) and 1 <= day <= 7 for day in weekdays
+    )
 
 
 def filter_entity(field, value):
@@ -154,6 +172,7 @@ def format_offers_response(base_queryset):
             "year": r.year,
             "semester": r.semester,
             "offer_id": r.offer_id,
+            "weekdays": r.weekdays,
         }
         for r in result
     ]

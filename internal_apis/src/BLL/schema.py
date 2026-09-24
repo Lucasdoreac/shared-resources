@@ -261,6 +261,7 @@ class Query(ObjectType):
         searchOfferId=graphene.Int(),
         searchSemester=graphene.Int(),
         searchYear=graphene.Int(),
+        searchWeekday=graphene.Int(),
     )
     types = List(
         TypesType,
@@ -374,7 +375,8 @@ class Query(ObjectType):
             searchCampus=None, searchDiscipline=None,
             searchPeriod=None, searchRoom=None,
             searchTeacher=None, searchOfferId=None,
-            searchSemester=None, searchYear=None
+            searchSemester=None, searchYear=None,
+            searchWeekday=None
     ):
         """
         Return a list of offers. Supports filtering by related entities' names 
@@ -424,6 +426,8 @@ class Query(ObjectType):
             query = query.filter(semester=searchSemester)
         if searchYear:
             query = query.filter(year=searchYear)
+        if searchWeekday:
+            query = query.filter(weekdays=searchWeekday)
 
         return query
 
