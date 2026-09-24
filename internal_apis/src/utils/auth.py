@@ -15,18 +15,37 @@ def validate_api_key(api_key):
     return False
 
 
+def api_key_error():
+    """Resposta de erro se a x-api-key faltar ou for inválida; None se ok."""
+    api_key = request.headers.get("x-api-key")
+    if not api_key:
+        log_missing_credentials()
+        return jsonify({"error": "Unauthorized: Missing API Key"}), 403
+
+    if not validate_api_key(api_key):
+        log_invalid_credentials(api_key=api_key)
+        return jsonify({"error": "Unauthorized: Invalid API Key"}), 403
+    return None
+
+
+# Rotas com dados do catálogo. A documentação (/apidocs, /apispec.json) fica aberta.
+PROTECTED_PREFIXES = ("/restapi", "/graphql")
+
+
+def require_api_key_on_catalog():
+    """before_request: exige a chave em todo o catálogo, antes do cache e da
+    rota. Antes só o POST /offers pedia; o resto (inclusive professores)
+    respondia a quem alcançasse a porta."""
+    if request.path.startswith(PROTECTED_PREFIXES):
+        return api_key_error()
+    return None
+
+
 def check_api_key(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
-        api_key = request.headers.get("x-api-key")
-        if not api_key:
-            log_missing_credentials()
-            return jsonify({"error": "Unauthorized: Missing API Key"}), 403
-
-        if not validate_api_key(api_key):
-            log_invalid_credentials(api_key=api_key)
-            return jsonify({"error": "Unauthorized: Invalid API Key"}), 403
-
-        log_authentication_request(api_key)
+        error = api_key_error()
+        if error:
+            return error
         return func(*args, **kwargs)
     return wrapper

@@ -3,6 +3,7 @@ from flask import Flask, jsonify
 from mongoengine import connect
 from utils import log_error_request
 from utils.cache import init_cache
+from utils.auth import require_api_key_on_catalog
 from .graphql import setup_graphql_routes
 from .restapi import setup_rest_routes
 
@@ -11,6 +12,9 @@ def create_app(config_class):
     app.config.from_object(config_class)
 
     init_cache(app)
+
+    # Chave de API em todo o catálogo, antes de qualquer rota ou cache.
+    app.before_request(require_api_key_on_catalog)
 
     # Registra as rotas REST e GraphQL
     setup_rest_routes(app)

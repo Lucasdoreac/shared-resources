@@ -25,7 +25,7 @@ Coluna **Prod**: ✅ obrigatória em produção · ⚠️ tem padrão que não s
 |---|---|---|---|---|
 | `MONGO_URI` | ✅ | — | MongoDB do catálogo. | Não conecta. |
 | `MONGO_DATABASE` | ✅ | `rooms-reservation-app` | Banco. | Falha ao consultar. |
-| `API_KEY_LIST` | ✅ | `chave1,chave2` | Chaves aceitas no header `x-api-key`. Hoje só o `POST /offers` exige. | O serviço **não sobe** (lida na importação). |
+| `API_KEY_LIST` | ✅ | `chave1,chave2` | Chaves aceitas no header `x-api-key`, exigido em **tudo** sob `/restapi` e `/graphql` (a documentação `/apidocs` fica aberta). O python-services manda a sua em `INTERNAL_API_KEY`. | O serviço **não sobe** (lida na importação). |
 | `REDIS_URL` | ✅ | `redis://redis:6379/0` | Cache (Flask-Caching). | Tenta `redis://localhost:6379/0`. |
 | `SERVER_NAME` | — | `catalogo.exemplo` | Host público do Flask. | Aceita qualquer `Host`. |
 
@@ -33,5 +33,6 @@ Coluna **Prod**: ✅ obrigatória em produção · ⚠️ tem padrão que não s
 - ~~Login aberto em modo development~~ **resolvido:** antes bastava `FLASK_ENV=development`
   para o link de login voltar na resposta; agora exige também `AUTH_DEV_RETURN_LINK=true`,
   desligada por padrão e ligada só no dev-local.
-- **Catálogo aberto:** só o `POST /offers` pede `x-api-key`; todos os GET (inclui professores)
-  respondem a quem alcança a porta. PR #26 (backpressure/API key) trata parte disso.
+- ~~Catálogo aberto~~ **resolvido:** a chave é exigida num `before_request` central, antes do
+  cache e das rotas; a chave nunca vai em claro para o log. O PR #26 não resolvia isto (só
+  importava o decorator na rota de campus, sem aplicar).
