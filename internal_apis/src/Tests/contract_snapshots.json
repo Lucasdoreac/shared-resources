@@ -1,0 +1,186 @@
+{
+  "campus": {
+    "data": {
+      "campus": [
+        {
+          "id": "c1",
+          "name": "Campus Sede"
+        },
+        {
+          "id": "c2",
+          "name": "Campus Norte"
+        }
+      ]
+    },
+    "errors": []
+  },
+  "course_por_id": {
+    "data": {
+      "courses": [
+        {
+          "coordinator": "coord-31",
+          "id": 31,
+          "name": "ENFERMAGEM"
+        }
+      ]
+    },
+    "errors": []
+  },
+  "disciplines_por_nome": {
+    "data": {
+      "disciplines": [
+        {
+          "name": "Cálculo I"
+        }
+      ]
+    },
+    "errors": []
+  },
+  "disciplines_todas": {
+    "data": {
+      "disciplines": [
+        {
+          "name": "Cálculo I"
+        },
+        {
+          "name": "Anatomia"
+        }
+      ]
+    },
+    "errors": []
+  },
+  "offers_por_dia": {
+    "data": {
+      "offers": [
+        {
+          "period": {
+            "name": "NOITE"
+          },
+          "room": {
+            "id": "r1"
+          }
+        }
+      ]
+    },
+    "errors": []
+  },
+  "periods": {
+    "data": {
+      "periods": [
+        {
+          "name": "NOITE"
+        },
+        {
+          "name": "MANHÃ"
+        }
+      ]
+    },
+    "errors": []
+  },
+  "rooms_por_nome": {
+    "data": {
+      "rooms": [
+        {
+          "campus": null,
+          "id": "r1",
+          "name": "101"
+        }
+      ]
+    },
+    "errors": []
+  },
+  "rooms_todas": {
+    "data": {
+      "rooms": [
+        {
+          "campus": null,
+          "name": "101"
+        },
+        {
+          "campus": null,
+          "name": "202"
+        }
+      ]
+    },
+    "errors": []
+  },
+  "teacher_por_id": {
+    "data": {
+      "teachers": [
+        {
+          "email": "ana@udf.edu.br",
+          "id": "t1",
+          "name": "Ana Souza"
+        }
+      ]
+    },
+    "errors": []
+  },
+  "teachers_por_nome": {
+    "data": {
+      "teachers": [
+        {
+          "id": "t1",
+          "name": "Ana Souza"
+        }
+      ]
+    },
+    "errors": []
+  },
+  "teachers_todos": {
+    "data": {
+      "teachers": [
+        {
+          "id": "t1",
+          "name": "Ana Souza"
+        },
+        {
+          "id": "t2",
+          "name": "Bruno Lima"
+        }
+      ]
+    },
+    "errors": []
+  },
+  "types_por_colecao": {
+    "data": {
+      "types": [
+        {
+          "collection": "ODS",
+          "types": [
+            {
+              "name": "Saúde",
+              "type": "ods"
+            }
+          ]
+        }
+      ]
+    },
+    "errors": []
+  },
+  "types_todos": {
+    "data": {
+      "types": [
+        {
+          "collection": "ODS",
+          "types": [
+            {
+              "id": 3,
+              "name": "Saúde"
+            }
+          ]
+        },
+        {
+          "collection": "eventTypes",
+          "types": [
+            {
+              "id": 1,
+              "name": "Palestra"
+            }
+          ]
+        }
+      ]
+    },
+    "errors": []
+  }
+}
