@@ -49,6 +49,35 @@
     },
     "errors": []
   },
+  "ofertas_da_tela": {
+    "data": {
+      "offers": [
+        {
+          "campus": {
+            "name": "Campus Sede"
+          },
+          "discipline": {
+            "name": "Cálculo I"
+          },
+          "id": "64b0000000000000000000a1",
+          "offerId": 1,
+          "period": {
+            "name": "NOITE"
+          },
+          "room": {
+            "name": "101"
+          },
+          "teacher": {
+            "name": "Ana Souza"
+          },
+          "weekdays": [
+            3
+          ]
+        }
+      ]
+    },
+    "errors": []
+  },
   "offers_por_dia": {
     "data": {
       "offers": [
