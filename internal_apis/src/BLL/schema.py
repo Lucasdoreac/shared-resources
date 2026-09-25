@@ -392,36 +392,16 @@ class Query(ObjectType):
         if skip:
             query = query.skip(skip)
 
-        if searchCampus:
-            campus = Campus.objects(name__icontains=searchCampus).first()
-            if campus:
-                query = query.filter(campus=campus.id)
-            else:
-                return []
-        if searchDiscipline:
-            discipline = Discipline.objects(name__icontains=searchDiscipline).first()
-            if discipline:
-                query = query.filter(discipline=discipline.id)
-            else:
-                return []
-        if searchPeriod:
-            period = Period.objects(name__icontains=searchPeriod).first()
-            if period:
-                query = query.filter(period=period.id)
-            else:
-                return []
-        if searchRoom:
-            room = Room.objects(name__icontains=searchRoom).first()
-            if room:
-                query = query.filter(room=room.id)
-            else:
-                return []
-        if searchTeacher:
-            teacher = Teacher.objects(name__icontains=searchTeacher).first()
-            if teacher:
-                query = query.filter(teacher=teacher.id)
-            else:
-                return []
+        # Cada busca por nome vale para TODAS as entidades que contêm o texto
+        # (antes só a primeira: "Cálculo" trazia só Cálculo I ou só Cálculo II).
+        for text, model, field in ((searchCampus, Campus, "campus"), (searchDiscipline, Discipline, "discipline"),
+                                   (searchPeriod, Period, "period"), (searchRoom, Room, "room"),
+                                   (searchTeacher, Teacher, "teacher")):
+            if text:
+                ids = list(model.objects(name__icontains=text).scalar("id"))
+                if not ids:
+                    return []
+                query = query.filter(**{f"{field}__in": ids})
         if searchOfferId:
             query = query.filter(offer_id=searchOfferId)
         if searchSemester:
