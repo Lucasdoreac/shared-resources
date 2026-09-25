@@ -1,0 +1,39 @@
+# Testes a cada push e pull request, um job por serviço. Mesmo caminho do
+# dev-local/run-tests.sh: imagem do Dockerfile de produção de cada serviço e
+# pytest dentro dela (os testes de conteúdo da imagem conferem a imagem real).
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  internal_apis:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: internal_apis
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Imagem (Dockerfile de produção)
+        run: docker build -t internal-apis-tests .
+
+      - name: pytest dentro da imagem
+        run: docker run --rm internal-apis-tests sh -c "PYTHONPATH=src poetry run pytest src/Tests -v"
+
+  auth_service:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: auth_service
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Imagem (Dockerfile de produção)
+        run: docker build -t auth-service-tests .
+
+      - name: pytest dentro da imagem
+        run: docker run --rm auth-service-tests poetry run pytest tests -v
