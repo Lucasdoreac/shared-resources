@@ -92,3 +92,35 @@ def test_graphql_offers_filter_by_weekday(catalog):
     assert result.data["offers"] == [
         {"offerId": 1, "weekdays": [2], "room": {"id": "r1"}, "period": {"name": "NOITE"}}
     ]
+
+
+def saved_offer(weekdays=None):
+    return models.Offer(discipline=101, period="p1", campus="c1", room="r1", teacher="t1",
+                        total_enrolled=30, total_optatives_enrolled=0, year=2026, semester=2,
+                        offer_id=7001, weekdays=weekdays or []).save()
+
+
+def test_patch_sets_weekdays_of_an_existing_offer(client):
+    # As ofertas vêm da planilha da UDF sem dia da semana; a Coordenação marca
+    # os dias pela tela do Reservas (python-services), que chama esta rota.
+    offer = saved_offer()
+    res = client.patch(f"/restapi/offers/{offer.id}/weekdays", json={"weekdays": [2, 4]},
+                       headers={"x-api-key": API_KEY})
+    assert res.status_code == 200
+    assert res.get_json()["weekdays"] == [2, 4]
+    assert models.Offer.objects.get(id=offer.id).weekdays == [2, 4]
+
+
+@pytest.mark.parametrize("body", [{"weekdays": [9]}, {"weekdays": "2"}, {}])
+def test_patch_rejects_invalid_weekdays(client, body):
+    offer = saved_offer(weekdays=[1])
+    res = client.patch(f"/restapi/offers/{offer.id}/weekdays", json=body,
+                       headers={"x-api-key": API_KEY})
+    assert res.status_code == 400
+    assert models.Offer.objects.get(id=offer.id).weekdays == [1]
+
+
+def test_patch_unknown_offer_is_404(client):
+    res = client.patch("/restapi/offers/64b000000000000000000000/weekdays", json={"weekdays": [1]},
+                       headers={"x-api-key": API_KEY})
+    assert res.status_code == 404
