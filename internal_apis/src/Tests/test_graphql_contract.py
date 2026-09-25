@@ -1,4 +1,4 @@
-"""Contrato GraphQL com o python-services: as 13 consultas que ele envia
+"""Contrato GraphQL com o python-services: as 14 consultas que ele envia
 (src/SLL/cluster_api/request_methods.py), sobre um conjunto fixo de dados,
 comparadas com respostas gravadas no graphene 2. Rede de segurança da
 migração para o graphene 3: a resposta não pode mudar.
@@ -34,6 +34,9 @@ QUERIES = {
     "rooms_por_nome": 'query{ rooms(search: "101") { id name campus { name } } }',
     "course_por_id": "query{ courses(courseId: 31) { id coordinator name } }",
     "teacher_por_id": 'query{ teachers(teacherId: "t1") { id email name } }',
+    # tela de ofertas (OFFERS_PAGE_QUERY); lá os argumentos vão como variáveis GraphQL
+    "ofertas_da_tela": 'query{ offers(searchYear: 2026, searchSemester: 2, searchDiscipline: "Cálculo", first: 20, skip: 0) '
+                       '{ id offerId weekdays discipline { name } period { name } room { name } teacher { name } campus { name } } }',
 }
 
 
@@ -52,9 +55,9 @@ def catalog():
     models.Room(id="r2", name="202", campus="c2").save()
     models.Teacher(id="t1", name="Ana Souza", course=[31], email="ana@udf.edu.br").save()
     models.Teacher(id="t2", name="Bruno Lima", course=[39]).save()
-    models.Offer(discipline=101, period="p1", campus="c1", room="r1", teacher="t1", total_enrolled=30,
+    models.Offer(id="64b0000000000000000000a1", discipline=101, period="p1", campus="c1", room="r1", teacher="t1", total_enrolled=30,
                  total_optatives_enrolled=0, year=2026, semester=2, offer_id=1, weekdays=[3]).save()
-    models.Offer(discipline=102, period="p2", campus="c2", room="r2", teacher="t2", total_enrolled=20,
+    models.Offer(id="64b0000000000000000000a2", discipline=102, period="p2", campus="c2", room="r2", teacher="t2", total_enrolled=20,
                  total_optatives_enrolled=0, year=2026, semester=2, offer_id=2, weekdays=[1]).save()
     models.Type(id=1, collection="ODS", types=[models.TypeDetail(id=3, name="Saúde", type="ods")]).save()
     models.Type(id=2, collection="eventTypes", types=[models.TypeDetail(id=1, name="Palestra", type="lecture")]).save()
