@@ -103,7 +103,9 @@ class RoomType(MongoengineObjectType):
         """
         Resolve the campus for this room by querying the database.
         """
-        campus = Campus.objects(name=root.campus).first()
+        # A sala guarda o ID do campus (carga da planilha). Antes buscava pelo
+        # nome e nunca achava: campus vinha sempre null. Nome fica de reserva.
+        campus = Campus.objects(id=root.campus).first() or Campus.objects(name=root.campus).first()
         return campus
 
 
