@@ -81,7 +81,9 @@
     "data": {
       "rooms": [
         {
-          "campus": null,
+          "campus": {
+            "name": "Campus Sede"
+          },
           "id": "r1",
           "name": "101"
         }
@@ -93,11 +95,17 @@
     "data": {
       "rooms": [
         {
-          "campus": null,
+          "campus": {
+            "id": "c1",
+            "name": "Campus Sede"
+          },
           "name": "101"
         },
         {
-          "campus": null,
+          "campus": {
+            "id": "c2",
+            "name": "Campus Norte"
+          },
           "name": "202"
         }
       ]
