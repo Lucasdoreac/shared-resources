@@ -15,7 +15,9 @@ jobs:
       run:
         working-directory: internal_apis
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false  # o CI não faz push; o token não fica no disco
 
       - name: Imagem (Dockerfile de produção)
         run: docker build -t internal-apis-tests .
@@ -30,7 +32,9 @@ jobs:
       run:
         working-directory: auth_service
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false  # o CI não faz push; o token não fica no disco
 
       - name: Imagem (Dockerfile de produção)
         run: docker build -t auth-service-tests .
