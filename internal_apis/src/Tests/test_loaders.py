@@ -36,7 +36,7 @@ def test_course_loader(mock_courses):
 
     # Act
     courses_ids = [1, 2, 3]
-    result = course_loader.load_many(courses_ids).get()
+    result = course_loader.load_many(courses_ids)
 
     # Assert
     assert result == mock_courses

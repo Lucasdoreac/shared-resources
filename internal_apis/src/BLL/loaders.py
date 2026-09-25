@@ -1,64 +1,32 @@
-from promise import Promise
-from promise.dataloader import DataLoader
 from DAL import Campus, Course, Discipline, Period, Room, Teacher, Offer
 
-class BatchLoader(DataLoader):
+
+class BatchLoader:
+    """Carregador por requisição, com cache por chave: cada entidade é buscada
+    no banco no máximo uma vez por consulta GraphQL, e `load_many` busca as que
+    faltam numa query só.
+
+    Substitui o DataLoader do `promise` (graphene 2). No graphene 3 a execução
+    é síncrona e os resolvers devolvem o valor direto, sem Promise.
     """
-        A batch loader for efficiently loading model instances by their primary keys.
-
-        This class inherits from `DataLoader` and is intended to be used for batching
-        database fetch operations. Instead of performing a single query for each
-        requested item, it fetches them all in a single query, thereby improving
-        performance and reducing the number of database round trips.
-
-        Attributes:
-            model_class (models.Model): The Django model class this loader is responsible for.
-
-        Methods:
-            batch_load_fn(keys):
-                Given a list of keys (usually primary keys), returns a `Promise` that resolves to
-                the list of model instances corresponding to these keys.
-
-            load_all():
-                Returns a `Promise` that resolves to all instances of the `model_class`.
-        """
 
     def __init__(self, model_class):
-        """
-        Initialize a BatchLoader instance for a specific model class.
-
-        Args:
-            model_class (models.Model): The Django model class to be loaded in batches.
-        """
-        super().__init__()
         self.model_class = model_class
+        self._cache = {}
 
-    def batch_load_fn(self, keys):
-        """
+    def load_many(self, keys):
+        missing = [key for key in keys if key not in self._cache]
+        if missing:
+            found = {entity.id: entity for entity in self.model_class.objects.filter(id__in=missing)}
+            for key in missing:
+                self._cache[key] = found.get(key)
+        return [self._cache[key] for key in keys]
 
-        Load multiple entities by their primary keys in a single database query.
-
-        Args:
-            keys (list): A list of primary key values for the entities to be loaded.
-
-        Returns:
-            Promise: A promise that resolves to a list of model instances in the same order
-                     as the provided keys.
-        """
-        entities = self.model_class.objects.filter(id__in=keys)
-        entity_map = {entity.id: entity for entity in entities}
-        return Promise.resolve([entity_map.get(key) for key in keys])
+    def load(self, key):
+        return self.load_many([key])[0]
 
     def load_all(self):
-        """
-        Load all instances of the `model_class`.
-
-        Returns:
-            Promise: A promise that resolves to a list of all model instances of `model_class`.
-        """
-
-        entities = self.model_class.objects.all()
-        return Promise.resolve(entities)
+        return list(self.model_class.objects.all())
 
 
 class OfferLoader:

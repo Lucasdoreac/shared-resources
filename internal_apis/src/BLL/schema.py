@@ -444,7 +444,7 @@ class IntOrString(Scalar):
         return value
 
     @staticmethod
-    def parse_literal(node):
+    def parse_literal(node, _variables=None):  # graphene 3 passa as variáveis
         if node.value.isdigit():
             return int(node.value)
         return node.value
