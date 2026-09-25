@@ -3,7 +3,7 @@
 # variável do app em main.py de `internal_apis` para `internal_api`; aqui
 # mantemos o nome atual (`internal_apis`) pra não introduzir um rename sem
 # necessidade.
-FROM python:3.13.3-slim
+FROM python:3.13.15-slim
 
 WORKDIR /internal_apis
 
