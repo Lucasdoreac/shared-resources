@@ -2,7 +2,7 @@
 # nunca mergeado) e adaptado ao código atual da main (sem os renomes que o
 # PR fazia em internal_apis/main.py — aqui a variável do app já é
 # `auth_app`, que é o que o pyproject.toml e main.py já usam).
-FROM python:3.13.3-slim
+FROM python:3.13.15-slim
 
 WORKDIR /auth_service
 
