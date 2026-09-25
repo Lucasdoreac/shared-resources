@@ -370,6 +370,31 @@ def get_swagger_specification(path, method=None):
         }
 
     # Offers POST
+    if path == 'offers' and method == 'PATCH_WEEKDAYS':
+        return {
+            "summary": "Definir os dias da semana de uma Oferta",
+            "description": "Troca só os dias da semana da aula (ISO 8601: 1 = segunda ... 7 = domingo). "
+                           "Usado pela tela de ofertas do Reservas; lista vazia = oferta sem dia (não bloqueia sala).",
+            "tags": ["Offers"],
+            "operationId": "setOfferWeekdays",
+            "consumes": ["application/json"],
+            "parameters": [
+                {"in": "header", "name": "x-api-key", "type": "string", "required": True,
+                 "description": "Chave de API para autenticação"},
+                {"in": "path", "name": "offer_id", "type": "string", "required": True,
+                 "description": "id da oferta (campo `id` do GET /offers)"},
+                {"in": "body", "name": "body", "required": True, "schema": {
+                    "type": "object", "required": ["weekdays"],
+                    "properties": {"weekdays": {"type": "array", "items": {"type": "integer", "minimum": 1, "maximum": 7}}}}},
+            ],
+            "responses": {
+                "200": {"description": "Oferta atualizada (mesmo formato de um item do GET /offers)"},
+                "400": {"description": "weekdays ausente ou inválido"},
+                "403": {"description": "Chave de API inválida ou ausente"},
+                "404": {"description": "Oferta não encontrada"},
+            },
+        }
+
     if path == 'offers' and method == 'POST':
         return {
             "summary": "Criar uma nova Oferta",

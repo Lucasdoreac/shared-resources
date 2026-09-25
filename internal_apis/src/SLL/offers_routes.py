@@ -2,6 +2,8 @@ from flasgger import swag_from
 from flask import Blueprint, jsonify, request
 import datetime
 
+from bson import ObjectId
+
 from DAL import Offer, Campus, Discipline, Period, Room, Teacher
 from utils import log_info_request, log_resource_not_found, check_api_key, get_swagger_specification
 
@@ -113,6 +115,26 @@ def create_offer():
         return jsonify({"error": str(e)}), 400
 
 
+@offers_bp.route('/<string:offer_id>/weekdays', methods=['PATCH'])
+@check_api_key
+@swag_from(get_swagger_specification(path="offers", method="PATCH_WEEKDAYS"))
+def set_offer_weekdays(offer_id):
+    """
+    Troca só os dias da semana de uma oferta. As ofertas vêm da planilha da
+    UDF sem dia; a tela de ofertas do Reservas marca os dias por aqui.
+    """
+    weekdays = (request.get_json(silent=True) or {}).get("weekdays")
+    if not valid_weekdays(weekdays):
+        return jsonify({"error": "weekdays must be a list of integers from 1 (Monday) to 7 (Sunday)"}), 400
+    offer = Offer.objects(id=offer_id).first() if ObjectId.is_valid(offer_id) else None
+    if offer is None:
+        log_resource_not_found("Offer", "_id", offer_id)
+        return jsonify({"error": f"No offer found for id = {offer_id}"}), 404
+    offer.weekdays = sorted(set(weekdays))
+    offer.save()
+    return jsonify(offer_as_dict(offer))
+
+
 def valid_weekdays(weekdays):
     """
     ISO 8601 weekdays: 1 = Monday ... 7 = Sunday.
@@ -154,28 +176,29 @@ def pagination_config(base_queryset):
     return result, page, pagesize
 
 
+def offer_as_dict(r):
+    return {
+        "id": str(r.id),
+        "discipline": r.discipline,
+        "period": r.period,
+        "campus": r.campus,
+        "room": r.room,
+        "teacher": r.teacher,
+        "total_enrolled": r.total_enrolled,
+        "total_optatives_enrolled": r.total_optatives_enrolled,
+        "year": r.year,
+        "semester": r.semester,
+        "offer_id": r.offer_id,
+        "weekdays": r.weekdays,
+    }
+
+
 def format_offers_response(base_queryset):
     total_count = base_queryset.count()
 
     result, page, pagesize = pagination_config(base_queryset)
 
-    response_data = [
-        {
-            "id": str(r.id),
-            "discipline": r.discipline,
-            "period": r.period,
-            "campus": r.campus,
-            "room": r.room,
-            "teacher": r.teacher,
-            "total_enrolled": r.total_enrolled,
-            "total_optatives_enrolled": r.total_optatives_enrolled,
-            "year": r.year,
-            "semester": r.semester,
-            "offer_id": r.offer_id,
-            "weekdays": r.weekdays,
-        }
-        for r in result
-    ]
+    response_data = [offer_as_dict(r) for r in result]
 
     total_pages = (total_count + pagesize - 1) // pagesize if pagesize > 0 else 1
     return jsonify({
