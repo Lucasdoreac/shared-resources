@@ -70,7 +70,8 @@ def send_magic_link(email, username, magic_link):
         Response: HTTP response from the email sending service.
     """
     # Render the HTML template with dynamic data
-    minio_icon_url = f"{os.getenv('MINIO_URL')}/labtech/email-icones/magic-link.png"
+    minio_url = (os.getenv('MINIO_URL') or '').strip().rstrip('/')
+    minio_icon_url = f"{minio_url}/labtech/email-icones/magic-link.png" if minio_url else ""
     html_content = render_template('email/magic_link.html',
                                    username=username,
                                    magic_link=magic_link,

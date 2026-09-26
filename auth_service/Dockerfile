@@ -19,4 +19,4 @@ RUN poetry install --no-root
 
 EXPOSE 5050
 
-CMD ["poetry", "run", "gunicorn", "-w", "2", "-b", "0.0.0.0:5050", "main:auth_app"]
+CMD ["sh", "-c", "poetry run gunicorn -w 2 -b 0.0.0.0:${PORT:-5050} main:auth_app"]

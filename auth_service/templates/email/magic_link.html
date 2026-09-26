@@ -22,7 +22,9 @@
     <div class="container">
         <h2>Olá {{ username }},</h2>
         <p>Se você requisitou logar em uma das nossas aplicações, por favor clique no link abaixo:</p>
+        {% if minio_icon_url %}
         <img src="{{ minio_icon_url }}" alt="Icon" width="120" height="120">
+        {% endif %}
         <p>
             <a class="button" href="{{ magic_link }}">Autorizar!</a>
         </p>
