@@ -10,9 +10,10 @@ def init_cache(app):
     Args:
         app (Flask): Instância da aplicação Flask.
     """
-    # Configuração do cache
+    # Configuração do cache: usa Redis se REDIS_URL estiver definida, senao SimpleCache em memoria
+    cache_type = os.getenv('CACHE_TYPE') or ('RedisCache' if os.getenv('REDIS_URL') else 'SimpleCache')
     app.config.update({
-            'CACHE_TYPE': 'RedisCache',
+            'CACHE_TYPE': cache_type,
             'CACHE_DEFAULT_TIMEOUT': 86400,
             'CACHE_REDIS_URL': os.getenv('REDIS_URL','redis://localhost:6379/0'),
             'CACHE_OPTIONS': {
