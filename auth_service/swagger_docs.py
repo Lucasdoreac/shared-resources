@@ -3,7 +3,7 @@ def get_swagger_specification(path, method = None):
         if method == 'POST':
             return {
                 "summary": "Enviar link de autenticação",
-                "description": "Endpoint para enviar um link de autenticação para o email fornecido, apenas emails do domínio '@udf.edu.br' são permitidos.",
+                "description": "Envia um link de autenticação para emails @udf.edu.br e para endereços individuais listados em AUTH_ALLOWED_EMAILS.",
                 "tags": ["Auth"],
                 "operationId": "sendMagicLink",
                 "parameters": [
@@ -130,4 +130,3 @@ def get_swagger_specification(path, method = None):
                     }
                 }
             }
-

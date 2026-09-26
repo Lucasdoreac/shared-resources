@@ -23,7 +23,7 @@ def client(monkeypatch):
     monkeypatch.setattr(auth_routes, "AuthenticationController", FakeController)
     monkeypatch.setattr(auth_routes, "send_magic_link", lambda *args: sent.append(args) or Sent())
     monkeypatch.setenv("REACT_APP", "http://front")
-    for name in ("FLASK_ENV", "AUTH_DEV_RETURN_LINK"):
+    for name in ("FLASK_ENV", "AUTH_DEV_RETURN_LINK", "AUTH_ALLOWED_EMAILS"):
         monkeypatch.delenv(name, raising=False)
     app = Flask(__name__)
     app.register_blueprint(auth_routes.auth_bp)
@@ -32,8 +32,27 @@ def client(monkeypatch):
     return test_client
 
 
-def send_link(client):
-    return client.post(f"/auth/send-link?email={EMAIL}")
+def send_link(client, email=EMAIL):
+    return client.post(f"/auth/send-link?email={email}")
+
+
+def test_only_explicitly_allowed_external_email_gets_a_link(client, monkeypatch):
+    allowed = "lucas.dorea@cs.udf.edu.br"
+    monkeypatch.setenv("AUTH_ALLOWED_EMAILS", f"{allowed},other@example.com")
+
+    response = send_link(client, allowed)
+
+    assert response.status_code == 201
+    assert [args[0] for args in client.sent] == [allowed]
+
+
+def test_external_email_not_on_allowlist_is_rejected(client, monkeypatch):
+    monkeypatch.setenv("AUTH_ALLOWED_EMAILS", "lucas.dorea@cs.udf.edu.br")
+
+    response = send_link(client, "someone@example.com")
+
+    assert response.status_code == 400
+    assert client.sent == []
 
 
 def test_development_alone_does_not_return_the_login_link(client, monkeypatch):
