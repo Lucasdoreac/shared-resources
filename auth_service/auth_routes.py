@@ -57,6 +57,21 @@ def return_link_in_response():
             and os.getenv('AUTH_DEV_RETURN_LINK', '').strip().lower() in ('1', 'true', 'yes', 'on'))
 
 
+def is_allowed_login_email(email):
+    """Allow UDF addresses and explicitly configured one-off exceptions."""
+    normalized = (email or '').strip().lower()
+    if normalized.count('@') != 1:
+        return False
+    if normalized.endswith('@udf.edu.br'):
+        return True
+    allowed = {
+        item.strip().lower()
+        for item in os.getenv('AUTH_ALLOWED_EMAILS', '').split(',')
+        if item.strip()
+    }
+    return normalized in allowed
+
+
 def send_magic_link(email, username, magic_link):
     """
     Sends an email with a magic link for login.
@@ -109,7 +124,7 @@ class AuthRoutes:
         # inject controller
         authentication_controller = AuthenticationController()
         email = request.args.get('email')
-        if not email.endswith('@udf.edu.br'):
+        if not is_allowed_login_email(email):
             return jsonify({'error': 'Invalid email domain'}), 400
         # Generate hash via the controller
         hash_auth = authentication_controller.generate_hash
