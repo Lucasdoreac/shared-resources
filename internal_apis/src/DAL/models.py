@@ -23,7 +23,7 @@ class Discipline(Document):
     id = IntField(primary_key=True,  db_field='_id')
     name = StringField(required=True, db_field='DES_DISC')
     course = ListField(IntField(), required=True, db_field='COD_CURS')
-    workload = IntField(min_value=20, required=True, db_field='CARG_HOR')
+    workload = IntField(min_value=10, required=True, db_field='CARG_HOR')
 
 
 class Period(Document):
@@ -104,6 +104,5 @@ class Type(Document):
     id = IntField(primary_key=True, db_field='_id')
     types = ListField(EmbeddedDocumentField(TypeDetail), required=True, db_field='types')
     collection = StringField(required=True, db_field='collection')
-
 
 

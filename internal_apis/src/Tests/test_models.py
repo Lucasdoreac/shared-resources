@@ -59,6 +59,21 @@ def test_discipline_creation(mongo_connection):
     assert saved_discipline.workload == 60
 
 
+def test_discipline_accepts_ten_hour_workload(mongo_connection):
+    discipline = Discipline(
+        id=7171,
+        name="Carga horária oficial de 10 horas",
+        course=[68, 32],
+        workload=10,
+    )
+
+    discipline.save()
+
+    saved_discipline = Discipline.objects.get(id=7171)
+    assert saved_discipline.workload == 10
+    assert saved_discipline.course == [68, 32]
+
+
 def test_teacher_creation(mongo_connection):
     # Arrange
     computer_course = Course(id=54, code="CS54", name="Computer Science")
