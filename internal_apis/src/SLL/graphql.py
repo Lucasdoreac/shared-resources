@@ -1,6 +1,6 @@
 from flask import request, jsonify, Blueprint
 from graphene import Schema
-from flask_graphql import GraphQLView
+from graphql_server.flask.views import GraphQLView
 from BLL import ContextLoaders, Query, Mutation
 from utils import log_info_request
 
@@ -8,6 +8,10 @@ graphql_bp = Blueprint('graphql', __name__, url_prefix='/graphql')
 
 def setup_graphql_routes(app):
     schema = Schema(query=Query, mutation=Mutation)
+
+    class ReservasGraphQLView(GraphQLView):
+        def get_context(self, request, response):
+            return {"loaders": {"context-loader": ContextLoaders()}}
 
     # Endpoint do GraphQL
     @graphql_bp.route("/", methods=["POST"])
@@ -26,11 +30,10 @@ def setup_graphql_routes(app):
     # Endpoint para GraphiQL
     graphql_bp.add_url_rule(
         "/graphiql",
-        view_func=GraphQLView.as_view(
+        view_func=ReservasGraphQLView.as_view(
             "graphiql",
-            schema=schema,
-            graphiql=True,
-            get_context=lambda: {"loaders": {"context-loader": ContextLoaders()}},
+            schema=schema.graphql_schema,
+            graphql_ide="graphiql",
         ),
     )
 
