@@ -15,6 +15,7 @@ def init_cache(app):
             'CACHE_TYPE': 'RedisCache',
             'CACHE_DEFAULT_TIMEOUT': 86400,
             'CACHE_REDIS_URL': os.getenv('REDIS_URL','redis://localhost:6379/0'),
+            'CACHE_KEY_PREFIX': os.getenv('CACHE_KEY_PREFIX', 'flask_cache_'),
             'CACHE_OPTIONS': {
                 'socket_connect_timeout': 5,
                 'socket_timeout': 5,
