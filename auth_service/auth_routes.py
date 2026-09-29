@@ -2,10 +2,11 @@ import os
 from functools import wraps
 import requests
 from flasgger import swag_from
-from flask import Blueprint, jsonify, request, render_template
+from flask import Blueprint, current_app, jsonify, request, render_template
 from controller import AuthenticationController
 from swagger_docs import get_swagger_specification
 from cache import cache
+from email_policy import is_email_allowed, is_email_dry_run
 
 
 auth_bp = Blueprint('auth', __name__)
@@ -97,9 +98,12 @@ class AuthRoutes:
 
         # inject controller
         authentication_controller = AuthenticationController()
-        email = request.args.get('email')
-        if not email.endswith('@udf.edu.br'):
+        email = request.args.get('email', '').strip()
+        if not is_email_allowed(email, os.getenv('AUTH_EMAIL_ALLOWLIST', '')):
             return jsonify({'error': 'Invalid email domain'}), 400
+        if is_email_dry_run():
+            current_app.logger.info('Magic link suppressed because EMAIL_DRY_RUN is enabled')
+            return jsonify({'message': 'Email dry-run enabled; no email sent'}), 202
         # Generate hash via the controller
         hash_auth = authentication_controller.generate_hash
 

@@ -34,7 +34,9 @@ class Config:
     MONGO_USERNAME = os.getenv("MONGO_USERNAME")
 
     # MongoDB URI setup
-    MONGO_URI = f"mongodb+srv://{MONGO_USERNAME}:{MONGO_PASSWORD}@{MONGO_HOST}/"
+    MONGO_URI = os.getenv("MONGO_URI") or (
+        f"mongodb+srv://{MONGO_USERNAME}:{MONGO_PASSWORD}@{MONGO_HOST}/"
+    )
 
     SERVER_HOST = "0.0.0.0"
     SERVER_PORT = 5050
