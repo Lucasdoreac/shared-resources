@@ -134,3 +134,55 @@ def test_send_magic_link_uses_brevo_api(monkeypatch):
         },
         timeout=15,
     )
+
+
+
+# --- e-mail logo: rendered from the real template ------------------------------
+
+def render_magic_link(monkeypatch):
+    app = create_app(TestConfig)
+    monkeypatch.setattr(MongoDBConnectionFactory, "init_app", lambda *_args, **_kwargs: None)
+    with app.test_request_context():
+        return auth_routes.render_template(
+            "email/magic_link.html",
+            username="reviewer",
+            magic_link="https://reservas.example.test/auth/callback?email=r@udf.edu.br&hash=abc",
+            logo_url=auth_routes.email_logo_url(),
+        )
+
+
+def test_logo_url_comes_from_email_assets_url_without_a_trailing_slash(monkeypatch):
+    monkeypatch.setenv("EMAIL_ASSETS_URL", "https://web.example.test/labtech/email-icones/")
+    monkeypatch.delenv("MINIO_URL", raising=False)
+
+    assert auth_routes.email_logo_url() == "https://web.example.test/labtech/email-icones/dw-corp-logo.png"
+
+
+def test_the_email_shows_the_logo_above_the_greeting_with_alt_text(monkeypatch):
+    monkeypatch.setenv("EMAIL_ASSETS_URL", "https://web.example.test/labtech/email-icones")
+
+    html = render_magic_link(monkeypatch)
+
+    assert '<img src="https://web.example.test/labtech/email-icones/dw-corp-logo.png"' in html
+    assert 'alt="DW Corp"' in html
+    assert html.index("<img") < html.index("Olá reviewer")
+    assert 'href="https://reservas.example.test/auth/callback?email=r@udf.edu.br&amp;hash=abc"' in html \
+        or 'href="https://reservas.example.test/auth/callback?email=r@udf.edu.br&hash=abc"' in html
+
+
+def test_without_a_configured_host_the_email_has_no_broken_image(monkeypatch):
+    monkeypatch.delenv("EMAIL_ASSETS_URL", raising=False)
+    monkeypatch.delenv("MINIO_URL", raising=False)
+
+    html = render_magic_link(monkeypatch)
+
+    assert "<img" not in html
+    assert "None/" not in html          # the old code produced src="None/labtech/..."
+    assert "Autorizar!" in html
+
+
+def test_an_unrelated_minio_url_no_longer_leaks_into_the_email(monkeypatch):
+    monkeypatch.delenv("EMAIL_ASSETS_URL", raising=False)
+    monkeypatch.setenv("MINIO_URL", "http://dwcorp.com.br:9000")
+
+    assert "dwcorp.com.br" not in render_magic_link(monkeypatch)

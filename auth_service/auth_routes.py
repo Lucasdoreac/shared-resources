@@ -48,6 +48,17 @@ def token_required(f):
     return decorated_function
 
 
+def email_logo_url():
+    """Public URL of the DW Corp logo shown in e-mails, or "" when no host serves it.
+
+    ``EMAIL_ASSETS_URL`` points at a public folder holding ``dw-corp-logo.png`` (the web app
+    serves it from ``/labtech/email-icones/``). Without it the template omits the image
+    instead of showing a broken one.
+    """
+    base = (os.getenv("EMAIL_ASSETS_URL") or "").strip().rstrip("/")
+    return f"{base}/dw-corp-logo.png" if base else ""
+
+
 def send_magic_link(email, username, magic_link):
     """
     Sends an email with a magic link for login.
@@ -61,11 +72,10 @@ def send_magic_link(email, username, magic_link):
         Response: HTTP response from the email sending service.
     """
     # Render the HTML template with dynamic data
-    minio_icon_url = f"{os.getenv('MINIO_URL')}/labtech/email-icones/magic-link.png"
     html_content = render_template('email/magic_link.html',
                                    username=username,
                                    magic_link=magic_link,
-                                   minio_icon_url=minio_icon_url)
+                                   logo_url=email_logo_url())
 
     brevo_api_key = os.getenv('BREVO_API_KEY')
     if brevo_api_key:
