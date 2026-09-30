@@ -2,10 +2,11 @@ import os
 from functools import wraps
 import requests
 from flasgger import swag_from
-from flask import Blueprint, jsonify, request, render_template
+from flask import Blueprint, current_app, jsonify, request, render_template
 from controller import AuthenticationController
 from swagger_docs import get_swagger_specification
 from cache import cache
+from email_policy import is_email_allowed, is_email_dry_run
 
 
 auth_bp = Blueprint('auth', __name__)
@@ -66,19 +67,44 @@ def send_magic_link(email, username, magic_link):
                                    magic_link=magic_link,
                                    minio_icon_url=minio_icon_url)
 
+    brevo_api_key = os.getenv('BREVO_API_KEY')
+    if brevo_api_key:
+        sender_email = os.getenv('BREVO_SENDER_EMAIL', '').strip()
+        if not sender_email:
+            raise ValueError('BREVO_SENDER_EMAIL must be configured when Brevo is enabled')
+        payload = {
+            'sender': {
+                'name': os.getenv('BREVO_SENDER_NAME', 'Reservas UDF'),
+                'email': sender_email,
+            },
+            'to': [{'email': email, 'name': username}],
+            'subject': 'Autorização de Acesso',
+            'htmlContent': html_content,
+        }
+        return requests.post(
+            'https://api.brevo.com/v3/smtp/email',
+            json=payload,
+            headers={
+                'api-key': brevo_api_key,
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+            },
+            timeout=15,
+        )
+
+    # Compatibility path while existing deployments still use the legacy sender.
     url = f"{os.getenv('CLOUD_FUNCTION_URL')}/send-email"
     payload = {
         'subject': 'Autorização de Acesso',
         'content': html_content,
         'to': [email],
-        'is_html': True
+        'is_html': True,
     }
     headers = {
         'X-API-Key': os.getenv('CLOUD_FUNCTION_API_KEY'),
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
     }
-    response = requests.post(url, json=payload, headers=headers)
-    return response
+    return requests.post(url, json=payload, headers=headers, timeout=15)
 
 
 # API Routes
@@ -97,9 +123,12 @@ class AuthRoutes:
 
         # inject controller
         authentication_controller = AuthenticationController()
-        email = request.args.get('email')
-        if not email.endswith('@udf.edu.br'):
+        email = request.args.get('email', '').strip()
+        if not is_email_allowed(email, os.getenv('AUTH_EMAIL_ALLOWLIST', '')):
             return jsonify({'error': 'Invalid email domain'}), 400
+        if is_email_dry_run():
+            current_app.logger.info('Magic link suppressed because EMAIL_DRY_RUN is enabled')
+            return jsonify({'message': 'Email dry-run enabled; no email sent'}), 202
         # Generate hash via the controller
         hash_auth = authentication_controller.generate_hash
 
@@ -112,25 +141,11 @@ class AuthRoutes:
             return jsonify({'magic_link': magic_link}), 201
         try:
             send_response = send_magic_link(email, email.split('@')[0], magic_link)
-            if send_response.status_code != 200:
+            if send_response.status_code not in (200, 201, 202):
                 return jsonify({'error': 'Email sender service unavailable: failed to send email'}), 503
         except Exception as e:
             return jsonify({'error': str(e)}), 503
 
-
-        return jsonify({'message': 'Magic link sent successfully'}), 201
-
-
-        # Send the magic link via email
-        magic_link = f"{os.getenv('REACT_APP')}/auth/callback?email={email}&hash={hash_auth}"
-        if os.getenv('FLASK_ENV') == 'development':
-            return jsonify({'magic_link': magic_link}), 201
-        try:
-            send_response = send_magic_link(email, email.split('@')[0], magic_link)
-            if send_response.status_code != 200:
-                return jsonify({'error': 'Email sender service unavailable: failed to send email'}), 503
-        except Exception as e:
-            return jsonify({'error': str(e)}), 503
 
         return jsonify({'message': 'Magic link sent successfully'}), 201
 

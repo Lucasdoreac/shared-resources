@@ -1,0 +1,63 @@
+name: Auth service tests
+
+on:
+  pull_request:
+  push:
+  workflow_dispatch:
+  merge_group:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    services:
+      redis:
+        image: redis:8.10.1
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    env:
+      REDIS_URL: redis://127.0.0.1:6379/15
+    defaults:
+      run:
+        working-directory: auth_service
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.14.7"
+      - name: Install Poetry
+        run: python -m pip install poetry==2.4.1
+      - name: Install dependencies
+        run: poetry install --no-interaction --no-ansi --no-root
+      - name: Run tests
+        env:
+          PYTHONPATH: .
+        run: poetry run pytest tests -q
+      - name: Smoke the documented Gunicorn WSGI startup
+        run: |
+          set -euo pipefail
+          PYTHONPATH=.:tests poetry run gunicorn --workers 2 --bind 127.0.0.1:5050 gunicorn_app:app > "$RUNNER_TEMP/auth-gunicorn.log" 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true; wait "$server_pid" 2>/dev/null || true' EXIT
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:5050/health; then
+              echo
+              exit 0
+            fi
+            sleep 1
+          done
+          cat "$RUNNER_TEMP/auth-gunicorn.log"
+          exit 1
+      - name: Build the Render amd64 image
+        run: docker build --pull --platform linux/amd64 --tag reservas-auth:ci .
