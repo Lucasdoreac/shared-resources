@@ -149,20 +149,6 @@ class AuthRoutes:
 
         return jsonify({'message': 'Magic link sent successfully'}), 201
 
-
-        # Send the magic link via email
-        magic_link = f"{os.getenv('REACT_APP')}/auth/callback?email={email}&hash={hash_auth}"
-        if os.getenv('FLASK_ENV') == 'development':
-            return jsonify({'magic_link': magic_link}), 201
-        try:
-            send_response = send_magic_link(email, email.split('@')[0], magic_link)
-            if send_response.status_code != 200:
-                return jsonify({'error': 'Email sender service unavailable: failed to send email'}), 503
-        except Exception as e:
-            return jsonify({'error': str(e)}), 503
-
-        return jsonify({'message': 'Magic link sent successfully'}), 201
-
     @staticmethod
     @auth_bp.route('/auth/validate', methods=['GET'])
     @cache.cached(timeout=43200,query_string=True)  # Cache for 12 hours
