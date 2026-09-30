@@ -15,15 +15,15 @@ docker compose up -d
 ```
 # Staging email allowlist
 
-`AUTH_EMAIL_ALLOWLIST` accepts a comma-separated list of exact recipient
-addresses in addition to the standard `@udf.edu.br` domain. Set the developer
-address only in the Render Staging service; leave this value empty in
-Production. This controls who can request a login link, not which email
-provider sends it. Staging must use a separate sender/sink before real email
-delivery is enabled.
+`AUTH_EMAIL_ALLOWLIST` accepts exact recipient addresses in addition to the
+standard `@udf.edu.br` domain. Keep developer-only addresses in Staging and
+leave the value empty in Production.
 
-Set `EMAIL_DRY_RUN=true` in Staging while no isolated sender or test sink is
-configured. The Auth endpoint then returns HTTP 202 without storing an
-authentication token or calling the email provider. Keep it false in
-Production. A dry-run proves that the request is safely suppressed; it does
-not prove email delivery or a complete login flow.
+For direct Brevo delivery, configure `BREVO_API_KEY` and a sender address
+already verified in Brevo using `BREVO_SENDER_EMAIL`; `BREVO_SENDER_NAME` is
+optional. When `BREVO_API_KEY` is present, Auth uses the Brevo transactional
+email API. Otherwise it retains the legacy `CLOUD_FUNCTION_URL` sender.
+
+Keep `EMAIL_DRY_RUN=true` in Staging until the provider and sender are
+verified. Dry-run returns HTTP 202 without storing a token or calling a
+provider; it does not prove email delivery or a complete login flow.

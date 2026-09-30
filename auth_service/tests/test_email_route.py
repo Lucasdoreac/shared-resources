@@ -80,7 +80,7 @@ def test_send_link_still_delivers_when_dry_run_is_disabled(monkeypatch):
     controller = Mock()
     controller.generate_hash = "test-token"
     monkeypatch.setattr(auth_routes, "AuthenticationController", lambda: controller)
-    send_email = Mock(return_value=Mock(status_code=200))
+    send_email = Mock(return_value=Mock(status_code=201))
     monkeypatch.setattr(auth_routes, "send_magic_link", send_email)
     monkeypatch.setenv("AUTH_EMAIL_ALLOWLIST", "reviewer@cs.udf.edu.br")
     monkeypatch.setenv("EMAIL_DRY_RUN", "false")
@@ -99,4 +99,38 @@ def test_send_link_still_delivers_when_dry_run_is_disabled(monkeypatch):
         "reviewer@cs.udf.edu.br",
         "reviewer",
         "https://reservas.example.test/auth/callback?email=reviewer@cs.udf.edu.br&hash=test-token",
+    )
+
+
+def test_send_magic_link_uses_brevo_api(monkeypatch):
+    response = Mock(status_code=201)
+    request = Mock(return_value=response)
+    monkeypatch.setattr(auth_routes, "render_template", lambda *_args, **_kwargs: "<p>link</p>")
+    monkeypatch.setattr(auth_routes.requests, "post", request)
+    monkeypatch.setenv("BREVO_API_KEY", "test-brevo-key")
+    monkeypatch.setenv("BREVO_SENDER_EMAIL", "verified@example.test")
+    monkeypatch.setenv("BREVO_SENDER_NAME", "Reservas UDF")
+    monkeypatch.setenv("MINIO_URL", "https://objects.example.test")
+
+    result = auth_routes.send_magic_link(
+        "reviewer@cs.udf.edu.br",
+        "reviewer",
+        "https://reservas.example.test/auth/callback?token=test",
+    )
+
+    assert result.status_code == 201
+    request.assert_called_once_with(
+        "https://api.brevo.com/v3/smtp/email",
+        json={
+            "sender": {"name": "Reservas UDF", "email": "verified@example.test"},
+            "to": [{"email": "reviewer@cs.udf.edu.br", "name": "reviewer"}],
+            "subject": "Autorização de Acesso",
+            "htmlContent": "<p>link</p>",
+        },
+        headers={
+            "api-key": "test-brevo-key",
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+        },
+        timeout=15,
     )
