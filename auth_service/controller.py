@@ -58,7 +58,7 @@ class AuthenticationController:
 
     def is_token_valid(self, token: str, email: str) -> bool:
         """True when ``token`` is a live token issued to ``email``."""
-        if not isinstance(token, str) or not TOKEN_PATTERN.match(token):
+        if not isinstance(token, str) or not TOKEN_PATTERN.fullmatch(token):
             return False
         email = normalize_email(email)
         if not email:

@@ -55,7 +55,10 @@ def token_required(f):
 
 VALIDATE_FAILURES_PER_EMAIL = 30
 SEND_LINK_PER_EMAIL = 3
-SEND_LINK_PER_IP = 30
+# Behind the API every user reaches this service from the API's address, so the
+# per-address budget is only a coarse cap for direct calls; the per-client limit
+# lives in the API (client_limits.py) and the per-address one here (per e-mail).
+SEND_LINK_PER_IP = 300
 POSITIVE_CACHE_SECONDS = 60
 
 

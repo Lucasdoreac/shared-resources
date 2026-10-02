@@ -116,7 +116,7 @@ def test_old_format_tokens_are_rejected(controller, collection):
     collection.docs.append({"_id": 99, "email": EMAIL, "hash": old,
                             "expiresAt": datetime.now() + timedelta(hours=1)})
     assert not controller.is_token_valid(old, EMAIL)
-    for bad in ("", None, "a" * 42, "a" * 44, "!" * 43, 12345):
+    for bad in ("", None, "a" * 42, "a" * 44, "!" * 43, 12345, "a" * 43 + "\n"):
         assert not controller.is_token_valid(bad, EMAIL)
 
 
@@ -181,12 +181,17 @@ def test_send_link_is_limited_per_email(client):
     assert client.post("/auth/send-link?email=another@udf.edu.br").status_code == 201
 
 
-def test_send_link_is_limited_per_client_ip(client):
-    codes = []
-    for i in range(33):
-        codes.append(client.post(f"/auth/send-link?email=user{i}@udf.edu.br",
-                                 headers={"X-Forwarded-For": "203.0.113.9"}).status_code)
-    assert codes[:30] == [201] * 30 and codes[30:] == [429] * 3
+def test_accounts_behind_the_api_address_do_not_block_each_other(client):
+    # Every user arrives from the API server's address: ordinary traffic stays under the cap.
+    codes = [client.post(f"/auth/send-link?email=user{i}@udf.edu.br",
+                         headers={"X-Forwarded-For": "203.0.113.9"}).status_code for i in range(60)]
+    assert codes == [201] * 60
+
+
+def test_send_link_is_capped_per_address(client):
+    codes = [client.post(f"/auth/send-link?email=user{i}@udf.edu.br",
+                         headers={"X-Forwarded-For": "203.0.113.9"}).status_code for i in range(303)]
+    assert codes[:300] == [201] * 300 and codes[300:] == [429] * 3
     assert client.post("/auth/send-link?email=fresh@udf.edu.br",
                        headers={"X-Forwarded-For": "203.0.113.10"}).status_code == 201
 
@@ -194,9 +199,9 @@ def test_send_link_is_limited_per_client_ip(client):
 def test_a_spoofed_leftmost_forwarded_address_does_not_reset_the_limit(client, monkeypatch):
     # The platform proxy appends the real client; entries before it are attacker supplied.
     codes = [client.post(f"/auth/send-link?email=u{i}@udf.edu.br",
-                         headers={"X-Forwarded-For": f"10.0.0.{i}, 198.51.100.7"}).status_code
-             for i in range(33)]
-    assert codes[30:] == [429] * 3
+                         headers={"X-Forwarded-For": f"10.0.0.{i % 250}, 198.51.100.7"}).status_code
+             for i in range(303)]
+    assert codes[300:] == [429] * 3
 
 
 def test_validate_failures_are_limited_per_email(client):
