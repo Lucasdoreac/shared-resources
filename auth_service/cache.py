@@ -18,9 +18,12 @@ def init_cache(app):
         'CACHE_DEFAULT_TIMEOUT': 86400,
     }
     if cache_type == 'SimpleCache':
-        # The default threshold is 500 keys; beyond it entries are pruned, and a flood of
-        # distinct e-mails or addresses could evict the rate-limit counters and reset them.
-        cfg['CACHE_THRESHOLD'] = 100000
+        # The default of 500 keys is too small: beyond it entries are pruned, resetting
+        # rate-limit counters. A cap is still needed because keys come from clients.
+        # Memory: a counter is a key of at most ~350 bytes (e-mail <= 254 chars) plus
+        # ~150 of cache overhead, so 20000 keys stay near 10 MB in the worst case. Each
+        # failing address uses 2 keys, so ~10000 distinct addresses fit in one window.
+        cfg['CACHE_THRESHOLD'] = 20000
     if cache_type == 'RedisCache':
         cfg['CACHE_REDIS_URL'] = os.getenv('REDIS_URL', 'redis://localhost:6379/0')
         cfg['CACHE_OPTIONS'] = {

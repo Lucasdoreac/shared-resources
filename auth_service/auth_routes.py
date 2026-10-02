@@ -29,11 +29,15 @@ def token_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         token = request.args.get('token')
-        email = (request.args.get('email') or '').strip().lower()
+        email = counted_email(request.args.get('email'))
 
         keys = failure_keys(email)
         if validation_blocked(keys):
             return rate_limited()
+        if email is None:
+            # Not an address that can hold a token: the usual failure, no per-address counter.
+            record_failure(keys)
+            return jsonify({"message": "Invalid or missing token"}), 403
 
         # Only a positive answer is cached, briefly and under a hash of the
         # pair, so a revoked or expired token stops working within a minute and
@@ -68,22 +72,43 @@ SEND_LINK_PER_IP = 300
 POSITIVE_CACHE_SECONDS = 60
 
 
+MAX_EMAIL_LENGTH = 254  # RFC 5321 path limit; anything longer cannot be an address
+
+
+def counted_email(raw):
+    """The normalized e-mail when it may have per-address counters, else None.
+
+    Only an address send-link would accept (same policy) can ever hold a valid
+    token, so any other string gets no per-address counters: otherwise a client
+    could create one cache entry per invented string.
+    """
+    email = str(raw or '').strip().lower()
+    if len(email) > MAX_EMAIL_LENGTH or not is_email_allowed(email, allowlist_setting()):
+        return None
+    return email
+
+
 def failure_keys(email):
-    """Counters for failed validations: per (e-mail, client), per e-mail, and per proven client."""
-    keys = [f"validate:email:{email}:{rate_limit.subject_ip(request)}", f"validate:email:{email}"]
+    """Counters for failed validations as (key, limit): per (e-mail, client), per e-mail, per proven client.
+
+    ``email`` None (not an acceptable address) leaves only the per-client counter.
+    """
+    keys = []
+    if email is not None:
+        keys.append((f"validate:email:{email}:{rate_limit.subject_ip(request)}", VALIDATE_FAILURES_PER_EMAIL_AND_CLIENT))
+        keys.append((f"validate:email:{email}", VALIDATE_FAILURES_PER_EMAIL))
     proven = rate_limit.forwarded_client(request)
     if proven:  # without proof every caller shares the API's address, so a per-address cap would block everyone
-        keys.append(f"validate:client:{proven}")
+        keys.append((f"validate:client:{proven}", VALIDATE_FAILURES_PER_CLIENT))
     return keys
 
 
 def validation_blocked(keys):
-    limits = (VALIDATE_FAILURES_PER_EMAIL_AND_CLIENT, VALIDATE_FAILURES_PER_EMAIL, VALIDATE_FAILURES_PER_CLIENT)
-    return any(rate_limit.count(key) >= limit for key, limit in zip(keys, limits))
+    return any(rate_limit.count(key) >= limit for key, limit in keys)
 
 
 def record_failure(keys):
-    for key in keys:
+    for key, _ in keys:
         rate_limit.hit(key)
 
 
@@ -233,10 +258,13 @@ class AuthRoutes:
         """Trade the e-mailed link token (single use) for a session token."""
         body = request.get_json(silent=True)
         body = body if isinstance(body, dict) else {}
-        email = str(body.get('email') or '').strip().lower()
+        email = counted_email(body.get('email'))
         keys = failure_keys(email)
         if validation_blocked(keys):
             return rate_limited()
+        if email is None:
+            record_failure(keys)
+            return jsonify({"message": "Invalid or expired link"}), 403
         session = AuthenticationController().exchange_link_token(body.get('token'), email)
         if session is None:
             record_failure(keys)
