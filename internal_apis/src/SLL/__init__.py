@@ -3,6 +3,7 @@ from flask import Flask, jsonify
 from mongoengine import connect
 from utils import log_error_request
 from utils.auth import require_api_key_on_catalog
+from utils.security_headers import apply_security_headers, docs_enabled
 from utils.cache import init_cache
 from .graphql import setup_graphql_routes
 from .restapi import setup_rest_routes
@@ -32,7 +33,9 @@ def create_app(config_class):
         "swagger_ui": True,
         "specs_route": "/apidocs/"
     }
-    swagger = Swagger(app, config=swagger_config, merge=True) # merge=True para mesclar a nossa config com o padrão
+    if docs_enabled():
+        Swagger(app, config=swagger_config, merge=True) # merge=True para mesclar a nossa config com o padrão
+    app.after_request(apply_security_headers)
 
     # Conexão com o banco de dados
     connect(
