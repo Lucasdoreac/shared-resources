@@ -13,6 +13,7 @@ class TestConfig:
 
 
 def test_health_and_cors_with_current_dependencies(monkeypatch):
+    monkeypatch.setenv("REACT_APP", "http://localhost:3000")
     monkeypatch.setattr(
         MongoDBConnectionFactory, "init_app", lambda *_args, **_kwargs: None
     )
@@ -32,6 +33,12 @@ def test_health_and_cors_with_current_dependencies(monkeypatch):
     )
     assert preflight.status_code == 200
     assert preflight.headers["Access-Control-Allow-Origin"] == "http://localhost:3000"
+
+    foreign = client.options(
+        "/health",
+        headers={"Origin": "https://evil.example", "Access-Control-Request-Method": "GET"},
+    )
+    assert "Access-Control-Allow-Origin" not in foreign.headers
 
 
 def test_redis_cache_round_trip(monkeypatch):

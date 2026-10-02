@@ -3,7 +3,7 @@ from flask import Flask, jsonify
 from flask_cors import CORS
 from flasgger import Swagger
 from cache import init_cache
-from security_headers import apply_security_headers, docs_enabled
+from security_headers import apply_security_headers, cors_origins, docs_enabled
 
 
 # create app
@@ -32,7 +32,7 @@ def create_app(config_class):
         Swagger(app)
     app.after_request(apply_security_headers)
     app.config.from_object(config_class)
-    CORS(app)
+    CORS(app, origins=cors_origins(), supports_credentials=False)
 
     init_cache(app)
 
