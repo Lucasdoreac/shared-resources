@@ -1,7 +1,8 @@
 from flasgger import Swagger
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
+from werkzeug.exceptions import HTTPException
 from mongoengine import connect
-from utils import log_error_request
+from utils import AppLogger, LogType, Logmessage, log_error_request
 from utils.auth import require_api_key_on_catalog
 from utils.security_headers import apply_security_headers, docs_enabled
 from utils.cache import init_cache
@@ -78,6 +79,27 @@ def create_app(config_class):
     @log_error_request("Internal Server Error")
     def internal_server_error(error):
         return jsonify({"error": "An unexpected error occurred. Please try again later."}), 500
+
+    @app.errorhandler(HTTPException)
+    def http_error(error):
+        # Any other HTTP error (413, 415, 422, 429, ...) answers JSON as well. The
+        # specific handlers above win for their codes; redirects pass through.
+        if error.code is None or error.code < 400:
+            return error
+        AppLogger.log(
+            Logmessage.ERROR,
+            LogType.ERROR,
+            error_message=f"HTTP {error.code} {error.name}",
+            ip_address=request.remote_addr,
+            request_method=request.method,
+            request_path=request.path,
+        )
+        response = jsonify({"error": error.name})  # the standard status name, never request data
+        response.status_code = error.code
+        for name, value in error.get_response().headers:  # Allow, Retry-After, ...
+            if name.lower() not in ("content-type", "content-length"):
+                response.headers[name] = value
+        return response
 
     @app.route("/health")
     def health():
