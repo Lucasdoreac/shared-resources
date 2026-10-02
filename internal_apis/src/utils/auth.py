@@ -1,18 +1,17 @@
 import hashlib
-import os
+import hmac
 from functools import wraps
 from flask import request, jsonify
 
-from config_module import get_config
+from config_module import get_config, insecure_dev_allowed
 from utils.log_functions import log_authentication_request, log_missing_credentials, log_invalid_credentials
 
 config = get_config()
 API_KEY_LIST = config.API_KEY_LIST
 
-# Read endpoints stay open unless the operator turns the switch on; the Auth
-# and API callers must send x-api-key first (python-services sends
-# CATALOG_API_KEY when it is set).
-PROTECTED_READ_PREFIXES = ("/restapi", "/graphql")
+# The catalog is closed by default: every data route needs a valid key. The
+# docs (/apidocs, /apispec.json) and /health stay open.
+PROTECTED_PREFIXES = ("/restapi", "/graphql")
 
 
 def key_fingerprint(api_key):
@@ -21,11 +20,18 @@ def key_fingerprint(api_key):
 
 
 def validate_api_key(api_key):
-    return api_key in API_KEY_LIST
+    """Constant-time comparison against every configured key."""
+    if not api_key:
+        return False
+    matched = False
+    for key in API_KEY_LIST:
+        if hmac.compare_digest(api_key.encode("utf-8"), key.encode("utf-8")):
+            matched = True
+    return matched
 
 
-def _reject_unless_authorized():
-    """Return an error response when the request lacks a valid key, else None."""
+def api_key_error():
+    """Error response when x-api-key is missing, empty or invalid; None when fine."""
     api_key = request.headers.get("x-api-key")
     if not api_key:
         log_missing_credentials()
@@ -39,20 +45,20 @@ def _reject_unless_authorized():
     return None
 
 
+def require_api_key_on_catalog():
+    """before_request: runs ahead of the cache and the route."""
+    if insecure_dev_allowed():
+        return None
+    if request.path.startswith(PROTECTED_PREFIXES):
+        return api_key_error()
+    return None
+
+
 def check_api_key(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
-        rejection = _reject_unless_authorized()
-        if rejection is not None:
-            return rejection
+        error = api_key_error()
+        if error:
+            return error
         return func(*args, **kwargs)
     return wrapper
-
-
-def require_key_for_reads():
-    """``before_request`` hook; active only when REQUIRE_API_KEY_FOR_READS is true."""
-    if os.getenv("REQUIRE_API_KEY_FOR_READS", "").lower() not in ("1", "true", "yes"):
-        return None
-    if not request.path.startswith(PROTECTED_READ_PREFIXES):
-        return None
-    return _reject_unless_authorized()

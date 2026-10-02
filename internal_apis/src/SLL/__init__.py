@@ -2,7 +2,7 @@ from flasgger import Swagger
 from flask import Flask, jsonify
 from mongoengine import connect
 from utils import log_error_request
-from utils.auth import require_key_for_reads
+from utils.auth import require_api_key_on_catalog
 from utils.cache import init_cache
 from .graphql import setup_graphql_routes
 from .restapi import setup_rest_routes
@@ -12,7 +12,7 @@ def create_app(config_class):
     app.config.from_object(config_class)
 
     init_cache(app)
-    app.before_request(require_key_for_reads)
+    app.before_request(require_api_key_on_catalog)
 
     # Registra as rotas REST e GraphQL
     setup_rest_routes(app)
@@ -66,9 +66,9 @@ def create_app(config_class):
     def internal_server_error(error):
         return jsonify({"error": "An unexpected error occurred. Please try again later."}), 500
 
-    @app.route("/error")
-    def trigger_error():
-        raise RuntimeError("This is a test error for 500 handler")
+    @app.route("/health")
+    def health():
+        return jsonify(True), 200
 
 
     return app
