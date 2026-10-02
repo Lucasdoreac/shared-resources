@@ -64,6 +64,16 @@ def create_app(config_class):
     def not_found(error):
         return jsonify({"error": "Resource not found"}), 404
 
+    @app.errorhandler(405)
+    @log_error_request("Method not allowed")
+    def method_not_allowed(error):
+        response = jsonify({"error": "Method not allowed"})
+        response.status_code = 405
+        allow = error.get_response().headers.get("Allow")  # RFC 9110: a 405 must list the allowed methods
+        if allow:
+            response.headers["Allow"] = allow
+        return response
+
     @app.errorhandler(500)
     @log_error_request("Internal Server Error")
     def internal_server_error(error):
