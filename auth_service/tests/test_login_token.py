@@ -324,3 +324,29 @@ def test_answers_carry_security_headers_and_docs_are_closed(monkeypatch):
 def test_docs_open_only_when_enabled(monkeypatch):
     client = make_app(monkeypatch, ENABLE_API_DOCS="true")
     assert client.get("/apispec_1.json").status_code == 200
+
+
+# --- cache backend --------------------------------------------------------------------
+
+def cache_config(monkeypatch, **env):
+    from flask import Flask
+
+    from cache import init_cache
+
+    for name in ("CACHE_TYPE", "REDIS_URL"):
+        monkeypatch.delenv(name, raising=False)
+    for name, value in env.items():
+        monkeypatch.setenv(name, value)
+    app = Flask(__name__)
+    init_cache(app)
+    return app.config
+
+
+def test_without_redis_the_cache_is_in_memory(monkeypatch):
+    # Production has no Redis: the old default (Redis on localhost) failed every request.
+    assert cache_config(monkeypatch)["CACHE_TYPE"] == "SimpleCache"
+
+
+def test_with_a_redis_url_the_cache_is_redis(monkeypatch):
+    config = cache_config(monkeypatch, REDIS_URL="redis://redis:6379/0")
+    assert config["CACHE_TYPE"] == "RedisCache" and config["CACHE_REDIS_URL"] == "redis://redis:6379/0"
