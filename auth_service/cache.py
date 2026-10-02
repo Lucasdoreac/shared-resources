@@ -17,6 +17,10 @@ def init_cache(app):
         'CACHE_TYPE': cache_type,
         'CACHE_DEFAULT_TIMEOUT': 86400,
     }
+    if cache_type == 'SimpleCache':
+        # The default threshold is 500 keys; beyond it entries are pruned, and a flood of
+        # distinct e-mails or addresses could evict the rate-limit counters and reset them.
+        cfg['CACHE_THRESHOLD'] = 100000
     if cache_type == 'RedisCache':
         cfg['CACHE_REDIS_URL'] = os.getenv('REDIS_URL', 'redis://localhost:6379/0')
         cfg['CACHE_OPTIONS'] = {

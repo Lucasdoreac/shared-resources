@@ -27,3 +27,14 @@ email API. Otherwise it retains the legacy `CLOUD_FUNCTION_URL` sender.
 Keep `EMAIL_DRY_RUN=true` in Staging until the provider and sender are
 verified. Dry-run returns HTTP 202 without storing a token or calling a
 provider; it does not prove email delivery or a complete login flow.
+
+# Limites de login por pessoa
+
+Falhas de validação e pedidos de link são contados por (e-mail, cliente) e por e-mail
+(`auth_routes.py`). Atrás do API todo pedido chega do endereço do próprio API, então o API
+repassa o cliente em `X-Client-IP` junto de `X-Forward-Key`, e o Auth só confia no cabeçalho
+quando a chave confere (`AUTH_FORWARD_KEY`, igual nos dois serviços, comparada em tempo
+constante). Sem a variável, ou com chave errada, o cabeçalho é ignorado e vale o endereço de
+conexão. Configure primeiro em Staging; o limite grosso por endereço de conexão dos pedidos de
+link (`send:ip`) continua no endereço de conexão. `TRUSTED_PROXY_HOPS` (padrão 1, correto no
+Render) diz quantos proxies acrescentam ao `X-Forwarded-For`.

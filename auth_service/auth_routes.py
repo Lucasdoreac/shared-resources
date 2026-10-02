@@ -31,8 +31,8 @@ def token_required(f):
         token = request.args.get('token')
         email = (request.args.get('email') or '').strip().lower()
 
-        failures_key = f"validate:email:{email}"
-        if rate_limit.count(failures_key) >= VALIDATE_FAILURES_PER_EMAIL:
+        keys = failure_keys(email)
+        if validation_blocked(keys):
             return rate_limited()
 
         # Only a positive answer is cached, briefly and under a hash of the
@@ -48,18 +48,43 @@ def token_required(f):
             cache.set(cache_key, True, timeout=POSITIVE_CACHE_SECONDS)
             return f(*args, **kwargs)
 
-        rate_limit.hit(failures_key)
+        record_failure(keys)
         return jsonify({"message": "Invalid or missing token"}), 403
     return decorated_function
 
 
-VALIDATE_FAILURES_PER_EMAIL = 30
-SEND_LINK_PER_EMAIL = 3
+# Each limit has two budgets: one per (e-mail, client), so a stranger cannot lock someone
+# else out, and a higher ceiling per e-mail against spraying one address from many clients
+# or mail-bombing one inbox. "Client" is the person the API forwards (rate_limit.subject_ip).
+VALIDATE_FAILURES_PER_EMAIL_AND_CLIENT = 30
+VALIDATE_FAILURES_PER_EMAIL = 300
+VALIDATE_FAILURES_PER_CLIENT = 300  # one proven client inventing many e-mails (also bounds cache growth)
+SEND_LINK_PER_EMAIL_AND_CLIENT = 3
+SEND_LINK_PER_EMAIL = 10
 # Behind the API every user reaches this service from the API's address, so the
 # per-address budget is only a coarse cap for direct calls; the per-client limit
 # lives in the API (client_limits.py) and the per-address one here (per e-mail).
 SEND_LINK_PER_IP = 300
 POSITIVE_CACHE_SECONDS = 60
+
+
+def failure_keys(email):
+    """Counters for failed validations: per (e-mail, client), per e-mail, and per proven client."""
+    keys = [f"validate:email:{email}:{rate_limit.subject_ip(request)}", f"validate:email:{email}"]
+    proven = rate_limit.forwarded_client(request)
+    if proven:  # without proof every caller shares the API's address, so a per-address cap would block everyone
+        keys.append(f"validate:client:{proven}")
+    return keys
+
+
+def validation_blocked(keys):
+    limits = (VALIDATE_FAILURES_PER_EMAIL_AND_CLIENT, VALIDATE_FAILURES_PER_EMAIL, VALIDATE_FAILURES_PER_CLIENT)
+    return any(rate_limit.count(key) >= limit for key, limit in zip(keys, limits))
+
+
+def record_failure(keys):
+    for key in keys:
+        rate_limit.hit(key)
 
 
 def rate_limited():
@@ -174,7 +199,9 @@ class AuthRoutes:
         email = (request.args.get('email') or '').strip().lower()
         if not is_email_allowed(email, allowlist_setting()):
             return jsonify({'error': 'Invalid email domain'}), 400
-        if (rate_limit.hit(f"send:email:{email}") > SEND_LINK_PER_EMAIL
+        client = rate_limit.subject_ip(request)
+        if (rate_limit.hit(f"send:email:{email}:{client}") > SEND_LINK_PER_EMAIL_AND_CLIENT
+                or rate_limit.hit(f"send:email:{email}") > SEND_LINK_PER_EMAIL
                 or rate_limit.hit(f"send:ip:{rate_limit.client_ip(request)}") > SEND_LINK_PER_IP):
             return rate_limited()
         if is_email_dry_run():
@@ -207,12 +234,12 @@ class AuthRoutes:
         body = request.get_json(silent=True)
         body = body if isinstance(body, dict) else {}
         email = str(body.get('email') or '').strip().lower()
-        failures_key = f"validate:email:{email}"
-        if rate_limit.count(failures_key) >= VALIDATE_FAILURES_PER_EMAIL:
+        keys = failure_keys(email)
+        if validation_blocked(keys):
             return rate_limited()
         session = AuthenticationController().exchange_link_token(body.get('token'), email)
         if session is None:
-            rate_limit.hit(failures_key)
+            record_failure(keys)
             return jsonify({"message": "Invalid or expired link"}), 403
         return jsonify({"token": session}), 200
 

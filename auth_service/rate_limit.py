@@ -7,6 +7,7 @@ each Gunicorn worker counts on its own, so the effective limit is the configured
 one times the number of workers and a restart resets it.
 """
 
+import hmac
 import os
 import threading
 import time
@@ -38,6 +39,27 @@ def client_ip(request):
     if hops and len(forwarded) >= hops:
         return forwarded[-hops]
     return request.remote_addr or "unknown"
+
+
+def forwarded_client(request):
+    """The client address the API forwarded, or None when there is no valid proof.
+
+    Behind the API every user reaches this service from the API's address, so the API
+    forwards the real client in X-Client-IP, proven with X-Forward-Key (AUTH_FORWARD_KEY,
+    compared in constant time). Without the variable or with a wrong key the header is
+    ignored: nothing changes until the variable is set on both services.
+    """
+    key = os.getenv("AUTH_FORWARD_KEY", "")
+    forwarded = (request.headers.get("X-Client-IP") or "").strip()
+    proof = request.headers.get("X-Forward-Key") or ""
+    if key and forwarded and hmac.compare_digest(proof.encode("utf-8"), key.encode("utf-8")):
+        return forwarded[:64]
+    return None
+
+
+def subject_ip(request):
+    """Client address to count against: the forwarded one when proven, else the connecting one."""
+    return forwarded_client(request) or client_ip(request)
 
 
 def _local_count(key, increment):
