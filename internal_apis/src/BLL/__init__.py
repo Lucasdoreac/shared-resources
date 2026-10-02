@@ -1,2 +1,2 @@
-from .schema import Query, Mutation
+from .schema import Query
 from .loaders import ContextLoaders

@@ -1,20 +1,19 @@
 """
-This module defines a GraphQL schema for querying and mutating data related to a university-like environment. 
+This module defines a GraphQL schema for querying data related to a university-like environment. 
 It uses MongoEngine models to represent entities such as Campuses, Courses, Disciplines, Periods, Rooms, Teachers, Offers, and Types. 
 The schema includes queries for fetching lists of these entities and various search parameters. 
-It also provides mutations for creating Offers.
+The schema is read-only: it has no mutations.
 
 This schema leverages DataLoader-like loaders (through `info.context['loaders']`) to batch load related entities 
 (e.g., courses associated with a discipline, or the campus associated with a room), improving query efficiency.
 
 Classes ending with `Type` are GraphQL object types corresponding to MongoEngine models or derived objects.
-The `Query` class specifies root-level queries. The `Mutation` class defines root-level mutations, such as `create_offer`.
+The `Query` class specifies root-level queries.
 """
 
 import graphene
-from graphene import ObjectType, List, Field, Mutation, Scalar
+from graphene import ObjectType, List, Field
 from graphene_mongo import MongoengineObjectType
-import datetime
 
 from DAL import Campus, Course, Discipline, Period, Room, Teacher, Offer, Type
 
@@ -431,111 +430,3 @@ class Query(ObjectType):
         query = Type.objects.filter(collection__icontains=search) \
             if search else Type.objects.all()
         return query
-
-
-class IntOrString(Scalar):
-    """
-    A custom scalar that may represent either an Int or a String. 
-    Useful in cases where an ID field might be numeric or a string.
-    """
-
-    @staticmethod
-    def serialize(value):
-        return value
-
-    @staticmethod
-    def parse_literal(node):
-        if node.value.isdigit():
-            return int(node.value)
-        return node.value
-
-    @staticmethod
-    def parse_value(value):
-        try:
-            return int(value)
-        except ValueError:
-            return value
-
-
-class OfferInput(graphene.InputObjectType):
-    """
-    Input object type for creating an Offer mutation.
-
-    Fields:
-        discipline (IntOrString): The discipline ID (can be string or int).
-        period (String): The period ID as a string.
-        campus (String): The campus ID as a string.
-        room (String): The room ID as a string.
-        teacher (String): The teacher ID as a string.
-        total_enrolled (Int): The total number of enrolled students.
-        total_optatives_enrolled (Int): The total number of enrolled students in optative courses.
-        offer_id (Int): The unique ID of the offer.
-    """
-    discipline = IntOrString(required=True)
-    period = graphene.String(required=True)
-    campus = graphene.String(required=True)
-    room = graphene.String(required=True)
-    teacher = graphene.String(required=True)
-    total_enrolled = graphene.Int(required=True)
-
-    ## add fields HERE
-    total_optatives_enrolled = graphene.Int(required=True)
-    year = graphene.Int(required=True)
-    semester = graphene.Int(required=True)
-    offer_id = graphene.Int(required=True)
-
-
-class CreateOffer(Mutation):
-    """
-    Mutation for creating a new Offer.
-
-    Arguments:
-        offer_data (OfferInput): The input data required to create a new Offer.
-
-    Returns:
-        offer (OfferType): The newly created Offer object.
-    """
-
-    class Arguments:
-        offer_data = graphene.Argument(OfferInput)
-
-    offer = graphene.Field(OfferType)
-
-    def mutate(self, info, offer_data):
-        """
-        Create and save a new Offer using the provided input. 
-        Resolved entities (discipline, period, campus, room, teacher) are loaded from the DataLoader.
-        """
-        loader = info.context['loaders']['context-loader'].offer_loader
-
-        discipline = Offer.fetch_entity(loader.discipline_batch, Discipline, offer_data.discipline)
-        period = Offer.fetch_entity(loader.period_batch, Period, offer_data.period)
-        campus = Offer.fetch_entity(loader.campus_batch, Campus, offer_data.campus)
-        room = Offer.fetch_entity(loader.room_batch, Room, offer_data.room)
-        teacher = Offer.fetch_entity(loader.teacher_batch, Teacher, offer_data.teacher)
-
-        offer = Offer(
-            discipline=discipline.id,
-            period=period.id,
-            campus=campus.id,
-            room=room.id,
-            teacher=teacher.id,
-            total_enrolled=offer_data.total_enrolled,
-            total_optatives_enrolled=offer_data.total_optatives_enrolled,
-            year=datetime.datetime.now().year,
-            semester=1 if datetime.datetime.now().month < 7 else 2,
-            offer_id=offer_data.offer_id
-        )
-        offer.save()
-
-        return CreateOffer(offer=offer)
-
-
-class Mutation(ObjectType):
-    """
-    The root Mutation object for the GraphQL schema.
-
-    Fields:
-        create_offer (CreateOffer): Mutation to create a new Offer.
-    """
-    create_offer = CreateOffer.Field()
