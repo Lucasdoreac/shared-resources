@@ -1,7 +1,12 @@
+import platform
+
 from SLL_auth import create_app
 from configmodule import get_config
 
 
+
+# Printed to stdout so the host's log viewer shows the live CPU architecture.
+print(f"runtime: machine={platform.machine()} system={platform.system()} python={platform.python_version()}", flush=True)
 
 auth_app = create_app(get_config())
 
