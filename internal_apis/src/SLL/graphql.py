@@ -1,13 +1,13 @@
 from flask import request, jsonify, Blueprint
 from graphene import Schema
 from graphql_server.flask.views import GraphQLView
-from BLL import ContextLoaders, Query, Mutation
+from BLL import ContextLoaders, Query
 from utils import log_info_request
 
 graphql_bp = Blueprint('graphql', __name__, url_prefix='/graphql')
 
 def setup_graphql_routes(app):
-    schema = Schema(query=Query, mutation=Mutation)
+    schema = Schema(query=Query)
 
     class ReservasGraphQLView(GraphQLView):
         def get_context(self, request, response):
