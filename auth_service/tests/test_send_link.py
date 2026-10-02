@@ -2,14 +2,19 @@ import pytest
 from flask import Flask
 
 import auth_routes
+import rate_limit
 
 EMAIL = "prof@udf.edu.br"
 
 
-class FakeController:
-    generate_hash = "hash-123"
+TOKEN = "t" * 43
 
-    def insert_token(self, email, hash_auth):
+
+class FakeController:
+    def generate_token(self):
+        return TOKEN
+
+    def insert_token(self, email, token):
         pass
 
 
@@ -19,6 +24,7 @@ class Sent:
 
 @pytest.fixture
 def client(monkeypatch):
+    rate_limit.reset_local()
     sent = []
     monkeypatch.setattr(auth_routes, "AuthenticationController", FakeController)
     monkeypatch.setattr(auth_routes, "send_magic_link", lambda *args: sent.append(args) or Sent())
@@ -74,7 +80,7 @@ def test_link_returned_only_in_development_with_the_flag_on(client, monkeypatch)
 
     response = send_link(client)
 
-    assert response.get_json() == {"magic_link": f"http://front/auth/callback?email={EMAIL}&hash=hash-123"}
+    assert response.get_json() == {"magic_link": f"http://front/auth/callback?email=prof%40udf.edu.br&hash={TOKEN}"}
     assert client.sent == []
 
 

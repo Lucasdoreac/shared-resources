@@ -1,11 +1,14 @@
 import os
 from functools import wraps
+from hashlib import sha256
+from urllib.parse import urlencode
 import requests
 from flasgger import swag_from
-from flask import Blueprint, jsonify, request, render_template
+from flask import Blueprint, current_app, jsonify, request, render_template
 from controller import AuthenticationController
 from swagger_docs import get_swagger_specification
 from cache import cache
+import rate_limit
 
 
 auth_bp = Blueprint('auth', __name__)
@@ -25,26 +28,43 @@ def token_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         token = request.args.get('token')
-        email = request.args.get('email')
+        email = (request.args.get('email') or '').strip().lower()
 
-        cache_key = f"auth_token:{token}:{email}"
-        cached_valid = cache.get(cache_key)
-        if cached_valid is not None:
-            if cached_valid is True:
-                return f(*args, **kwargs)
-            else:
-                return jsonify({"message": "Invalid or missing token"}), 403
+        failures_key = f"validate:email:{email}"
+        if rate_limit.count(failures_key) >= VALIDATE_FAILURES_PER_EMAIL:
+            return rate_limited()
+
+        # Only a positive answer is cached, briefly and under a hash of the
+        # pair, so a revoked or expired token stops working within a minute and
+        # random guesses cannot fill the cache.
+        pair = sha256(f"{email}\0{token}".encode('utf-8')).hexdigest()
+        cache_key = f"auth_token:{pair}"
+        if cache.get(cache_key) is True:
+            return f(*args, **kwargs)
 
         authentication_controller = AuthenticationController()
-        valid_hash = authentication_controller.is_token_valid(token=token,
-                                                              email=email)
-
-        cache.set(cache_key, valid_hash, timeout=86400)  # Cache for 24 hours
-        if valid_hash:
+        if authentication_controller.is_token_valid(token=token, email=email):
+            cache.set(cache_key, True, timeout=POSITIVE_CACHE_SECONDS)
             return f(*args, **kwargs)
-        else:
-            return jsonify({"message": "Invalid or missing token"}), 403
+
+        rate_limit.hit(failures_key)
+        return jsonify({"message": "Invalid or missing token"}), 403
     return decorated_function
+
+
+VALIDATE_FAILURES_PER_EMAIL = 30
+SEND_LINK_PER_EMAIL = 3
+# Behind the API every user reaches this service from the API's address, so the
+# per-address budget is only a coarse cap for direct calls; the per-client limit
+# lives in the API (client_limits.py) and the per-address one here (per e-mail).
+SEND_LINK_PER_IP = 300
+POSITIVE_CACHE_SECONDS = 60
+
+
+def rate_limited():
+    response = jsonify({"error": "Too many requests; try again later"})
+    response.headers["Retry-After"] = str(rate_limit.window_seconds())
+    return response, 429
 
 
 def return_link_in_response():
@@ -123,17 +143,19 @@ class AuthRoutes:
 
         # inject controller
         authentication_controller = AuthenticationController()
-        email = request.args.get('email')
+        email = (request.args.get('email') or '').strip().lower()
         if not is_allowed_login_email(email):
             return jsonify({'error': 'Invalid email domain'}), 400
-        # Generate hash via the controller
-        hash_auth = authentication_controller.generate_hash
+        if (rate_limit.hit(f"send:email:{email}") > SEND_LINK_PER_EMAIL
+                or rate_limit.hit(f"send:ip:{rate_limit.client_ip(request)}") > SEND_LINK_PER_IP):
+            return rate_limited()
+        hash_auth = authentication_controller.generate_token()
 
         # Save the hash and email in the database
         authentication_controller.insert_token(email, hash_auth)
 
         # Send the magic link via email
-        magic_link = f"{os.getenv('REACT_APP')}/auth/callback?email={email}&hash={hash_auth}"
+        magic_link = f"{os.getenv('REACT_APP')}/auth/callback?{urlencode({'email': email, 'hash': hash_auth})}"
         if return_link_in_response():
             return jsonify({'magic_link': magic_link}), 201
         try:
@@ -141,14 +163,14 @@ class AuthRoutes:
             if send_response.status_code != 200:
                 return jsonify({'error': 'Email sender service unavailable: failed to send email'}), 503
         except Exception as e:
-            return jsonify({'error': str(e)}), 503
+            current_app.logger.error('Login e-mail delivery failed: %s', type(e).__name__)
+            return jsonify({'error': 'Email sender service unavailable'}), 503
 
 
         return jsonify({'message': 'Magic link sent successfully'}), 201
 
     @staticmethod
     @auth_bp.route('/auth/validate', methods=['GET'])
-    @cache.cached(timeout=43200,query_string=True)  # Cache for 12 hours
     @token_required
     @swag_from(get_swagger_specification(path='auth', method='GET'))
     def validate_hash():
