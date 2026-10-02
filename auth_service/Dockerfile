@@ -1,4 +1,4 @@
-FROM python:3.14.8-slim AS builder
+FROM python:3.14.8-alpine AS builder
 
 ENV POETRY_VERSION=2.4.1 \
     POETRY_NO_INTERACTION=1 \
@@ -7,19 +7,17 @@ ENV POETRY_VERSION=2.4.1 \
 
 WORKDIR /app
 
+# Toolchain só no estágio de build: locks sem wheel musllinux compilam aqui.
+RUN apk add --no-cache build-base libffi-dev openssl-dev
 RUN pip install --no-cache-dir "poetry==$POETRY_VERSION"
 
 COPY pyproject.toml poetry.lock ./
 RUN poetry install --only main --no-root --no-ansi \
     && rm -rf /app/.venv/lib/python3.14/site-packages/pip* /app/.venv/bin/pip*
 
-FROM python:3.14.8-slim AS runtime
+FROM python:3.14.8-alpine AS runtime
 
-ARG DEBIAN_FRONTEND=noninteractive
-
-RUN apt-get update \
-    && apt-get upgrade --yes --no-install-recommends \
-    && rm -rf /var/lib/apt/lists/* \
+RUN apk upgrade --no-cache \
     && python -m pip uninstall --yes pip
 
 ENV PATH="/app/.venv/bin:$PATH" \
