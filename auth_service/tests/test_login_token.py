@@ -450,8 +450,53 @@ def test_without_redis_the_cache_is_in_memory(monkeypatch):
 
 def test_the_in_memory_cache_does_not_evict_counters_under_a_flood(monkeypatch):
     # SimpleCache prunes entries beyond CACHE_THRESHOLD (500 by default), which would reset
-    # a limit once enough distinct addresses/e-mails have been seen.
-    assert cache_config(monkeypatch)["CACHE_THRESHOLD"] >= 50000
+    # a limit once enough addresses have been seen; but keys come from clients, so the
+    # threshold is also a memory ceiling and must stay bounded.
+    assert 5000 <= cache_config(monkeypatch)["CACHE_THRESHOLD"] <= 20000
+
+
+def limit_keys(client):
+    with client.application.app_context():
+        return [k for k in cache.cache._cache if str(k).startswith("rl:")]
+
+
+@pytest.mark.parametrize("email", [
+    "invented@example.com",           # outside the policy
+    "a@b@udf.edu.br",                 # not an address
+    "x" * 300 + "@udf.edu.br",        # longer than any address
+    "",
+])
+def test_validate_with_an_unacceptable_email_creates_no_per_email_counter(client, email):
+    response = client.get("/auth/validate", query_string={"email": email, "token": "H" * 43})
+    assert response.status_code == 403
+    assert response.get_json() == {"message": "Invalid or missing token"}
+    assert not [k for k in limit_keys(client) if "validate:email" in k]
+
+
+def test_exchange_with_an_unacceptable_email_creates_no_per_email_counter(client):
+    for email in ("invented@example.com", "y" * 300 + "@udf.edu.br"):
+        response = client.post("/auth/exchange", json={"email": email, "token": "H" * 43})
+        assert response.status_code == 403
+        assert response.get_json() == {"message": "Invalid or expired link"}
+    assert not [k for k in limit_keys(client) if "validate:email" in k]
+
+
+def test_unacceptable_emails_still_count_against_the_client(client, behind_the_api):
+    spray = {"headers": forwarded("198.51.100.99")}
+    codes = [client.get("/auth/validate", query_string={"email": f"n{i}@example.com", "token": "H" * 43}, **spray).status_code
+             for i in range(303)]
+    assert codes[:300] == [403] * 300 and codes[300:] == [429] * 3
+    assert [k for k in limit_keys(client) if k.startswith("rl:validate:client:")] == ["rl:validate:client:198.51.100.99"]
+    other = client.get("/auth/validate", query_string={"email": "n1@example.com", "token": "H" * 43},
+                       headers=forwarded("198.51.100.20"))
+    assert other.status_code == 403  # another person is untouched
+
+
+def test_an_allowlisted_address_keeps_its_counters(client, monkeypatch):
+    monkeypatch.setenv("AUTH_EMAIL_ALLOWLIST", "friend@example.com")
+    codes = [client.get("/auth/validate", query_string={"email": "Friend@Example.com", "token": "H" * 43}).status_code
+             for _ in range(33)]
+    assert codes[:30] == [403] * 30 and codes[30:] == [429] * 3
 
 
 def test_with_a_redis_url_the_cache_is_redis(monkeypatch):
