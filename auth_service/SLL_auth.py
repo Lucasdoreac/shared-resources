@@ -3,6 +3,7 @@ from flask import Flask, jsonify
 from flask_cors import CORS
 from flasgger import Swagger
 from cache import init_cache
+from security_headers import apply_security_headers, docs_enabled
 
 
 # create app
@@ -27,7 +28,9 @@ def create_app(config_class):
     """
 
     app = Flask(__name__)
-    swagger = Swagger(app)
+    if docs_enabled():
+        Swagger(app)
+    app.after_request(apply_security_headers)
     app.config.from_object(config_class)
     CORS(app)
 

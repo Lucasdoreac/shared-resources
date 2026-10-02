@@ -217,3 +217,38 @@ def test_limits_hold_when_the_cache_backend_fails(client, monkeypatch):
     monkeypatch.setattr(cache, "set", broken)
     codes = [client.post(f"/auth/send-link?email={EMAIL}").status_code for _ in range(5)]
     assert codes == [201, 201, 201, 429, 429]
+
+
+# --- headers and docs -----------------------------------------------------------------
+
+def make_app(monkeypatch, **env):
+    from SLL_auth import create_app
+    from mongo import MongoDBConnectionFactory
+
+    for name in ("ENABLE_API_DOCS", "FLASK_ENV", "ALLOW_INSECURE_DEV"):
+        monkeypatch.delenv(name, raising=False)
+    for name, value in env.items():
+        monkeypatch.setenv(name, value)
+    monkeypatch.setattr(MongoDBConnectionFactory, "init_app", lambda *a, **k: None)
+
+    class Config:
+        TESTING = True
+        MONGO_URI = "mongodb://localhost:27017"
+        MONGO_DATABASE = "t"
+
+    return create_app(Config).test_client()
+
+
+def test_answers_carry_security_headers_and_docs_are_closed(monkeypatch):
+    client = make_app(monkeypatch)
+    health = client.get("/health")
+    assert health.headers["X-Content-Type-Options"] == "nosniff"
+    assert health.headers["X-Frame-Options"] == "DENY"
+    assert "default-src 'none'" in health.headers["Content-Security-Policy"]
+    assert client.get("/apidocs/").status_code == 404
+    assert client.get("/apispec_1.json").status_code == 404
+
+
+def test_docs_open_only_when_enabled(monkeypatch):
+    client = make_app(monkeypatch, ENABLE_API_DOCS="true")
+    assert client.get("/apispec_1.json").status_code == 200
