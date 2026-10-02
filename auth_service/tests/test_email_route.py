@@ -1,6 +1,7 @@
 from unittest.mock import Mock
 
 import auth_routes
+import rate_limit
 from SLL_auth import create_app
 from mongo import MongoDBConnectionFactory
 
@@ -12,6 +13,7 @@ class TestConfig:
 
 
 def make_client(monkeypatch):
+    rate_limit.reset_local()
     monkeypatch.setattr(
         MongoDBConnectionFactory, "init_app", lambda *_args, **_kwargs: None
     )
@@ -21,7 +23,7 @@ def make_client(monkeypatch):
 
 def test_send_link_accepts_exact_allowlist_without_sending_email(monkeypatch):
     controller = Mock()
-    controller.generate_hash = "test-token"
+    controller.generate_token.return_value = "test-token"
     monkeypatch.setattr(auth_routes, "AuthenticationController", lambda: controller)
     send_email = Mock(side_effect=AssertionError("email delivery must stay disabled"))
     monkeypatch.setattr(auth_routes, "send_magic_link", send_email)
@@ -35,10 +37,10 @@ def test_send_link_accepts_exact_allowlist_without_sending_email(monkeypatch):
 
     assert response.status_code == 201
     assert response.get_json()["magic_link"].startswith(
-        "http://localhost:3000/auth/callback?email=Reviewer@cs.udf.edu.br"
+        "http://localhost:3000/auth/callback?email=reviewer%40cs.udf.edu.br"
     )
     controller.insert_token.assert_called_once_with(
-        "Reviewer@cs.udf.edu.br", "test-token"
+        "reviewer@cs.udf.edu.br", "test-token"
     )
     send_email.assert_not_called()
 
@@ -58,7 +60,7 @@ def test_send_link_rejects_other_developer_addresses(monkeypatch):
 
 def test_send_link_dry_run_suppresses_delivery_and_token_write(monkeypatch):
     controller = Mock()
-    controller.generate_hash = "test-token"
+    controller.generate_token.return_value = "test-token"
     monkeypatch.setattr(auth_routes, "AuthenticationController", lambda: controller)
     send_email = Mock(side_effect=AssertionError("dry-run must not send email"))
     monkeypatch.setattr(auth_routes, "send_magic_link", send_email)
@@ -78,7 +80,7 @@ def test_send_link_dry_run_suppresses_delivery_and_token_write(monkeypatch):
 
 def test_send_link_still_delivers_when_dry_run_is_disabled(monkeypatch):
     controller = Mock()
-    controller.generate_hash = "test-token"
+    controller.generate_token.return_value = "test-token"
     monkeypatch.setattr(auth_routes, "AuthenticationController", lambda: controller)
     send_email = Mock(return_value=Mock(status_code=201))
     monkeypatch.setattr(auth_routes, "send_magic_link", send_email)
@@ -98,7 +100,7 @@ def test_send_link_still_delivers_when_dry_run_is_disabled(monkeypatch):
     send_email.assert_called_once_with(
         "reviewer@cs.udf.edu.br",
         "reviewer",
-        "https://reservas.example.test/auth/callback?email=reviewer@cs.udf.edu.br&hash=test-token",
+        "https://reservas.example.test/auth/callback?email=reviewer%40cs.udf.edu.br&hash=test-token",
     )
 
 

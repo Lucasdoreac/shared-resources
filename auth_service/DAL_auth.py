@@ -1,3 +1,4 @@
+import hmac
 from datetime import datetime
 from BaseRepository import BaseRepository
 
@@ -21,51 +22,41 @@ class AuthenticationRepository(BaseRepository):
 
         return self.db.authentications
 
-    def insert_authentication(self, email, token, expires_at):
+    MAX_ACTIVE_PER_EMAIL = 5
+
+    def insert_authentication(self, email, token_hash, expires_at):
+        """Store the hash of a login token for ``email``; keeps few live tokens per address.
+
+        Expired records and all but the newest MAX_ACTIVE_PER_EMAIL - 1 are
+        removed first, so repeated link requests cannot grow the collection.
         """
-                Insere um novo registro de autenticação no banco de dados.
-
-                Cria um documento contendo o email, o token (hash) e a data de expiração, e insere-o na coleção.
-
-                Args:
-                    email (str): Email do usuário.
-                    token (str): Token (hash) de autenticação.
-                    expires_at (datetime): Data e hora de expiração do token.
-
-                Returns:
-                    ObjectId: O identificador do documento inserido.
-        """
-
+        collection = self.get_collection_name()
+        now = datetime.now()
+        collection.delete_many({"email": email, "expiresAt": {"$lte": now}})
+        live = list(collection.find({"email": email}, {"_id": 1}).sort("createdAt", -1))
+        stale = [doc["_id"] for doc in live[self.MAX_ACTIVE_PER_EMAIL - 1:]]
+        if stale:
+            collection.delete_many({"_id": {"$in": stale}})
         record = {
             "email": email,
-            "hash": token,
-            "expiresAt": expires_at
+            "tokenHash": token_hash,
+            "createdAt": now,
+            "expiresAt": expires_at,
         }
-        return self.get_collection_name().insert_one(record).inserted_id
+        return collection.insert_one(record).inserted_id
 
-    def validate_authentication(self, email, token):
+    def validate_authentication(self, email, token_hash):
+        """True when a non-expired record for ``email`` holds ``token_hash``.
+
+        Records are looked up by e-mail and compared in constant time; records
+        written in the old format (no ``tokenHash``) never match.
         """
-                Verifica se existe um registro de autenticação que corresponda ao email e token fornecidos e que não esteja expirado.
-
-                Compara o token e o email informados com os registros da coleção, garantindo que a data de expiração seja maior que o horário atual.
-
-                Args:
-                    email (str): Email do usuário.
-                    token (str): Token (hash) de autenticação.
-
-                Returns:
-                    bool: True se um registro válido for encontrado, caso contrário False.
-        """
-
-        current_time = datetime.now()
-        query = {
-            "email": email,
-            "hash": token,
-            "expiresAt": {"$gt": current_time}
-        }
-        return self.get_collection_name().find_one(query) is not None
-
-
-
-
-
+        candidates = self.get_collection_name().find(
+            {"email": email, "expiresAt": {"$gt": datetime.now()}, "tokenHash": {"$exists": True}},
+            {"tokenHash": 1},
+        ).limit(self.MAX_ACTIVE_PER_EMAIL * 2)
+        matched = False
+        for record in candidates:
+            if hmac.compare_digest(str(record.get("tokenHash", "")), token_hash):
+                matched = True
+        return matched

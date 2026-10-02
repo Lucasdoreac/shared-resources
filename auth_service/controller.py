@@ -1,6 +1,31 @@
-from datetime import datetime,timedelta
-from DAL_auth import AuthenticationRepository
+import os
+import re
+import secrets
+from datetime import datetime, timedelta
 from hashlib import sha256
+
+from DAL_auth import AuthenticationRepository
+
+# secrets.token_urlsafe(32) is 43 URL-safe characters; anything else (including
+# the old 64-hex timestamp hashes) is rejected before touching the database.
+TOKEN_PATTERN = re.compile(r'^[A-Za-z0-9_-]{43}$')
+
+
+def normalize_email(email):
+    return (email or '').strip().lower()
+
+
+def token_ttl():
+    try:
+        minutes = int(os.getenv('AUTH_TOKEN_TTL_MINUTES', '720'))
+    except ValueError:
+        minutes = 720
+    return timedelta(minutes=max(1, minutes))
+
+
+def hash_token(token):
+    return sha256(token.encode('utf-8')).hexdigest()
+
 
 class AuthenticationController:
     """
@@ -32,44 +57,20 @@ class AuthenticationController:
         self.tokens_repository = AuthenticationRepository()
 
     def is_token_valid(self, token: str, email: str) -> bool:
-        """
-               Verifica se o token associado ao email é válido.
-
-               Args:
-                   token (str): Token a ser validado.
-                   email (str): Email associado ao token.
-
-               Returns:
-                   bool: True se o token for válido, False caso contrário.
-        """
-
-        return self.tokens_repository.validate_authentication(email, token)
+        """True when ``token`` is a live token issued to ``email``."""
+        if not isinstance(token, str) or not TOKEN_PATTERN.match(token):
+            return False
+        email = normalize_email(email)
+        if not email:
+            return False
+        return self.tokens_repository.validate_authentication(email, hash_token(token))
 
     def insert_token(self, email: str, token: str) -> str:
-        """
-               Insere um novo token para o email fornecido, definindo sua expiração para 1 dia a partir do momento da inserção.
+        """Store only the hash of ``token``, bound to ``email``, with a short expiry."""
+        expires_at = datetime.now() + token_ttl()
+        return self.tokens_repository.insert_authentication(
+            normalize_email(email), hash_token(token), expires_at)
 
-               Args:
-                   email (str): Email para o qual o token será inserido.
-                   token (str): Token a ser inserido.
-
-               Returns:
-                   str: Resultado ou identificador retornado pelo repositório após a inserção do token.
-        """
-
-        expires_at = datetime.now() + timedelta(days=1)
-        return self.tokens_repository.insert_authentication(email, token, expires_at)
-
-    @property
-    def generate_hash(self) -> str:
-        """
-                Gera um hash único utilizando o timestamp atual e o algoritmo SHA256.
-
-                Returns:
-                    str: Hash gerado a partir da data e hora atual.
-        """
-
-        now = datetime.now()
-        return sha256(str(now).encode()).hexdigest()
-
-
+    def generate_token(self) -> str:
+        """Unpredictable login token (256 bits from the OS CSPRNG)."""
+        return secrets.token_urlsafe(32)
