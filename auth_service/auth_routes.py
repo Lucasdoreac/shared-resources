@@ -68,6 +68,14 @@ def rate_limited():
     return response, 429
 
 
+def return_link_in_response():
+    """Only in development, and only when asked: the login link comes back in the
+    response instead of by e-mail. FLASK_ENV=development alone is not enough, so
+    a deploy with a development .env cannot let anyone in as any institutional address."""
+    return (os.getenv('FLASK_ENV') == 'development'
+            and os.getenv('AUTH_DEV_RETURN_LINK', '').strip().lower() in ('1', 'true', 'yes', 'on'))
+
+
 def email_logo_url():
     """Public URL of the DW Corp logo shown in e-mails, or "" when no host serves it.
 
@@ -169,7 +177,7 @@ class AuthRoutes:
 
         # Send the magic link via email
         magic_link = f"{os.getenv('REACT_APP')}/auth/callback?{urlencode({'email': email, 'hash': hash_auth})}"
-        if os.getenv('FLASK_ENV') == 'development':
+        if return_link_in_response():
             return jsonify({'magic_link': magic_link}), 201
         try:
             send_response = send_magic_link(email, email.split('@')[0], magic_link)

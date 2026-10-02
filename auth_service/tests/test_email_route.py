@@ -29,6 +29,7 @@ def test_send_link_accepts_exact_allowlist_without_sending_email(monkeypatch):
     monkeypatch.setattr(auth_routes, "send_magic_link", send_email)
     monkeypatch.setenv("AUTH_EMAIL_ALLOWLIST", "reviewer@cs.udf.edu.br")
     monkeypatch.setenv("FLASK_ENV", "development")
+    monkeypatch.setenv("AUTH_DEV_RETURN_LINK", "true")
     monkeypatch.setenv("REACT_APP", "http://localhost:3000")
 
     response = make_client(monkeypatch).post(
@@ -188,3 +189,20 @@ def test_an_unrelated_minio_url_no_longer_leaks_into_the_email(monkeypatch):
     monkeypatch.setenv("MINIO_URL", "http://dwcorp.com.br:9000")
 
     assert "dwcorp.com.br" not in render_magic_link(monkeypatch)
+
+
+def test_development_alone_does_not_return_the_login_link(monkeypatch):
+    controller = Mock()
+    controller.generate_token.return_value = "test-token"
+    monkeypatch.setattr(auth_routes, "AuthenticationController", lambda: controller)
+    send_email = Mock(return_value=Mock(status_code=200))
+    monkeypatch.setattr(auth_routes, "send_magic_link", send_email)
+    monkeypatch.setenv("FLASK_ENV", "development")
+    monkeypatch.delenv("AUTH_DEV_RETURN_LINK", raising=False)
+    monkeypatch.setenv("EMAIL_DRY_RUN", "false")
+    monkeypatch.setenv("REACT_APP", "http://localhost:3000")
+
+    response = make_client(monkeypatch).post("/auth/send-link?email=prof@udf.edu.br")
+
+    assert "magic_link" not in (response.get_json() or {})
+    send_email.assert_called_once()
