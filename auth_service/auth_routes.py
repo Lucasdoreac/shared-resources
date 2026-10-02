@@ -76,6 +76,16 @@ def return_link_in_response():
             and os.getenv('AUTH_DEV_RETURN_LINK', '').strip().lower() in ('1', 'true', 'yes', 'on'))
 
 
+def allowlist_setting():
+    """Exact addresses allowed besides @udf.edu.br.
+
+    AUTH_EMAIL_ALLOWLIST is the name; AUTH_ALLOWED_EMAILS, the name the
+    Production lineage used, is still read when the first is unset.
+    """
+    value = os.getenv('AUTH_EMAIL_ALLOWLIST')
+    return value if value is not None else os.getenv('AUTH_ALLOWED_EMAILS', '')
+
+
 def email_logo_url():
     """Public URL of the DW Corp logo shown in e-mails, or "" when no host serves it.
 
@@ -162,7 +172,7 @@ class AuthRoutes:
         # inject controller
         authentication_controller = AuthenticationController()
         email = (request.args.get('email') or '').strip().lower()
-        if not is_email_allowed(email, os.getenv('AUTH_EMAIL_ALLOWLIST', '')):
+        if not is_email_allowed(email, allowlist_setting()):
             return jsonify({'error': 'Invalid email domain'}), 400
         if (rate_limit.hit(f"send:email:{email}") > SEND_LINK_PER_EMAIL
                 or rate_limit.hit(f"send:ip:{rate_limit.client_ip(request)}") > SEND_LINK_PER_IP):

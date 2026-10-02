@@ -206,3 +206,13 @@ def test_development_alone_does_not_return_the_login_link(monkeypatch):
 
     assert "magic_link" not in (response.get_json() or {})
     send_email.assert_called_once()
+
+
+def test_the_old_allowlist_name_is_still_honoured_when_the_new_one_is_unset(monkeypatch):
+    monkeypatch.delenv("AUTH_EMAIL_ALLOWLIST", raising=False)
+    monkeypatch.setenv("AUTH_ALLOWED_EMAILS", "legacy@example.com")
+    assert auth_routes.allowlist_setting() == "legacy@example.com"
+    monkeypatch.setenv("AUTH_EMAIL_ALLOWLIST", "new@example.com")
+    assert auth_routes.allowlist_setting() == "new@example.com"
+    monkeypatch.setenv("AUTH_EMAIL_ALLOWLIST", "")
+    assert auth_routes.allowlist_setting() == ""  # an explicit empty value wins
