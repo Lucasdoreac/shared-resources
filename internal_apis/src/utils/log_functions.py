@@ -44,7 +44,7 @@ def log_error_request(erro_message):
         return wrapper
     return decorator
 
-def log_authentication_request(api_key):
+def log_authentication_request(api_key_fingerprint):
 
     AppLogger.log(
         Logmessage.AUTHENTICATION_REQUEST,
@@ -52,7 +52,7 @@ def log_authentication_request(api_key):
         request_method=request.method,
         request_path=request.path,
         ip_address=request.remote_addr,
-        api_key=api_key,
+        api_key_fingerprint=api_key_fingerprint,
     )
 
 def log_missing_credentials():
@@ -64,12 +64,12 @@ def log_missing_credentials():
         ip_address=request.remote_addr,
     )
 
-def log_invalid_credentials(api_key):
+def log_invalid_credentials(api_key_fingerprint):
     AppLogger.log(
         Logmessage.INVALID_API_KEY,
         LogType.WARNING,
         request_method=request.method,
         request_path=request.path,
         ip_address=request.remote_addr,
-        api_key=api_key
+        api_key_fingerprint=api_key_fingerprint,
     )

@@ -13,9 +13,9 @@ class Logmessage(Enum):
     REQUEST_INFO = "Method: {request_method} - Path: {request_path} - IP: {ip_address}"
     ERROR = "Message: {error_message} - Path: {request_path} - IP: {ip_address}"
     MISSING_CREDENTIALS = "Missing credentials: {request_method} - Path: {request_path} - IP: {ip_address}"
-    INVALID_API_KEY = "Invalid API key: {request_method} - Path: {request_path} - IP: {ip_address} - API Key: {api_key}"
+    INVALID_API_KEY = "Invalid API key: {request_method} - Path: {request_path} - IP: {ip_address} - API key fingerprint: {api_key_fingerprint}"
     RESOURCE_NOT_FOUND = "Resource: {resource_type} not found - Parameter: {parameter} = '{value}' - Path: {request_path} - IP: {ip_address}"
-    AUTHENTICATION_REQUEST = "Authentication request: {request_method} - Path: {request_path} - IP: {ip_address} - API Key: {api_key} - User: X"
+    AUTHENTICATION_REQUEST = "Authentication request: {request_method} - Path: {request_path} - IP: {ip_address} - API key fingerprint: {api_key_fingerprint} - User: X"
 
 
 
