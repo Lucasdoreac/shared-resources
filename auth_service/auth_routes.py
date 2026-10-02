@@ -191,6 +191,22 @@ class AuthRoutes:
         return jsonify({'message': 'Magic link sent successfully'}), 201
 
     @staticmethod
+    @auth_bp.route('/auth/exchange', methods=['POST'])
+    def exchange_link():
+        """Trade the e-mailed link token (single use) for a session token."""
+        body = request.get_json(silent=True)
+        body = body if isinstance(body, dict) else {}
+        email = str(body.get('email') or '').strip().lower()
+        failures_key = f"validate:email:{email}"
+        if rate_limit.count(failures_key) >= VALIDATE_FAILURES_PER_EMAIL:
+            return rate_limited()
+        session = AuthenticationController().exchange_link_token(body.get('token'), email)
+        if session is None:
+            rate_limit.hit(failures_key)
+            return jsonify({"message": "Invalid or expired link"}), 403
+        return jsonify({"token": session}), 200
+
+    @staticmethod
     @auth_bp.route('/auth/validate', methods=['GET'])
     @token_required
     @swag_from(get_swagger_specification(path='auth', method='GET'))

@@ -15,12 +15,22 @@ def normalize_email(email):
     return (email or '').strip().lower()
 
 
-def token_ttl():
+def _ttl(name, default):
     try:
-        minutes = int(os.getenv('AUTH_TOKEN_TTL_MINUTES', '720'))
+        minutes = int(os.getenv(name, str(default)))
     except ValueError:
-        minutes = 720
+        minutes = default
     return timedelta(minutes=max(1, minutes))
+
+
+def link_ttl():
+    """The e-mailed link is short-lived and single use (AUTH_LINK_TTL_MINUTES, default 30)."""
+    return _ttl('AUTH_LINK_TTL_MINUTES', 30)
+
+
+def session_ttl():
+    """The session token the link is exchanged for (AUTH_SESSION_TTL_MINUTES, default 720)."""
+    return _ttl('AUTH_SESSION_TTL_MINUTES', 720)
 
 
 def hash_token(token):
@@ -57,19 +67,37 @@ class AuthenticationController:
         self.tokens_repository = AuthenticationRepository()
 
     def is_token_valid(self, token: str, email: str) -> bool:
-        """True when ``token`` is a live token issued to ``email``."""
+        """True when ``token`` is a live session token issued to ``email``."""
         if not isinstance(token, str) or not TOKEN_PATTERN.fullmatch(token):
             return False
         email = normalize_email(email)
         if not email:
             return False
-        return self.tokens_repository.validate_authentication(email, hash_token(token))
+        return self.tokens_repository.validate_authentication(email, hash_token(token), 'session')
 
     def insert_token(self, email: str, token: str) -> str:
-        """Store only the hash of ``token``, bound to ``email``, with a short expiry."""
-        expires_at = datetime.now() + token_ttl()
+        """Store only the hash of an e-mailed link token, bound to ``email``, short-lived."""
+        expires_at = datetime.now() + link_ttl()
         return self.tokens_repository.insert_authentication(
-            normalize_email(email), hash_token(token), expires_at)
+            normalize_email(email), hash_token(token), expires_at, 'link')
+
+    def exchange_link_token(self, token: str, email: str):
+        """Trade a link token for a session token; the link is consumed (single use).
+
+        Returns the new session token, or None when the link is unknown,
+        expired, already used or issued to another address.
+        """
+        if not isinstance(token, str) or not TOKEN_PATTERN.fullmatch(token):
+            return None
+        email = normalize_email(email)
+        if not email:
+            return None
+        if not self.tokens_repository.consume_authentication(email, hash_token(token), 'link'):
+            return None
+        session = self.generate_token()
+        self.tokens_repository.insert_authentication(
+            email, hash_token(session), datetime.now() + session_ttl(), 'session')
+        return session
 
     def generate_token(self) -> str:
         """Unpredictable login token (256 bits from the OS CSPRNG)."""

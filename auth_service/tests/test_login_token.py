@@ -29,25 +29,32 @@ class FakeCollection:
         self.docs.append(record)
         return type("R", (), {"inserted_id": record["_id"]})()
 
+    def _match(self, doc, query):
+        for key, cond in query.items():
+            if key == "_id" and isinstance(cond, dict):
+                if doc["_id"] not in cond["$in"]:
+                    return False
+            elif key == "expiresAt" and isinstance(cond, dict):
+                if "$lte" in cond and not doc["expiresAt"] <= cond["$lte"]:
+                    return False
+                if "$gt" in cond and not doc["expiresAt"] > cond["$gt"]:
+                    return False
+            elif doc.get(key) != cond:
+                return False
+        return True
+
     def delete_many(self, query):
-        keep = []
+        self.docs = [d for d in self.docs if not self._match(d, query)]
+
+    def delete_one(self, query):
         for doc in self.docs:
-            hit = doc["email"] == query.get("email", doc["email"]) if "email" in query else True
-            if "expiresAt" in query and "$lte" in query["expiresAt"]:
-                hit = hit and doc["expiresAt"] <= query["expiresAt"]["$lte"]
-            if "_id" in query:
-                hit = doc["_id"] in query["_id"]["$in"]
-            if not hit:
-                keep.append(doc)
-        self.docs = keep
+            if self._match(doc, query):
+                self.docs.remove(doc)
+                return type("R", (), {"deleted_count": 1})()
+        return type("R", (), {"deleted_count": 0})()
 
     def find(self, query, projection=None):
-        docs = [d for d in self.docs if d["email"] == query["email"]]
-        if "expiresAt" in query:
-            docs = [d for d in docs if d["expiresAt"] > query["expiresAt"]["$gt"]]
-        if "tokenHash" in query:
-            docs = [d for d in docs if "tokenHash" in d]
-        return FakeCursor(docs)
+        return FakeCursor([d for d in self.docs if self._match(d, query)])
 
 
 class FakeCursor(list):
@@ -91,36 +98,81 @@ def test_token_is_not_derivable_from_the_clock(controller):
         assert guess != token
 
 
-def test_only_the_hash_is_stored_and_the_token_is_bound_to_the_email(controller, collection):
+def test_only_the_hash_is_stored_and_the_link_is_bound_to_the_email(controller, collection):
     token = controller.generate_token()
     controller.insert_token("Prof@UDF.edu.br", token)
     (record,) = collection.docs
     assert token not in str(record)
-    assert record["tokenHash"] == hash_token(token) and record["email"] == EMAIL
-    assert controller.is_token_valid(token, EMAIL)
-    assert controller.is_token_valid(token, " PROF@udf.edu.br ")
-    assert not controller.is_token_valid(token, "other@udf.edu.br")
+    assert record["tokenHash"] == hash_token(token) and record["email"] == EMAIL and record["kind"] == "link"
+    assert controller.exchange_link_token(token, "other@udf.edu.br") is None
+    assert controller.exchange_link_token(token, " PROF@udf.edu.br ") is not None
 
 
-def test_token_expires(controller, collection, monkeypatch):
-    monkeypatch.setenv("AUTH_TOKEN_TTL_MINUTES", "1")
+def test_a_link_token_is_not_a_session(controller):
     token = controller.generate_token()
     controller.insert_token(EMAIL, token)
-    assert controller.is_token_valid(token, EMAIL)
-    collection.docs[0]["expiresAt"] = datetime.now() - timedelta(seconds=1)
     assert not controller.is_token_valid(token, EMAIL)
 
 
-def test_old_format_tokens_are_rejected(controller, collection):
+def test_the_link_is_single_use(controller, collection):
+    token = controller.generate_token()
+    controller.insert_token(EMAIL, token)
+    session = controller.exchange_link_token(token, EMAIL)
+    assert session and TOKEN_PATTERN.fullmatch(session) and session != token
+    assert controller.is_token_valid(session, EMAIL)
+    assert not controller.is_token_valid(session, "other@udf.edu.br")
+    assert controller.exchange_link_token(token, EMAIL) is None  # already used
+    assert [d["kind"] for d in collection.docs] == ["session"]
+    assert session not in str(collection.docs)
+
+
+def test_two_simultaneous_exchanges_cannot_both_win(controller, collection, monkeypatch):
+    token = controller.generate_token()
+    controller.insert_token(EMAIL, token)
+    repo = controller.tokens_repository
+    real = repo._matching_record
+    monkeypatch.setattr(repo, "_matching_record", lambda *a, **k: real(*a, **k) or None)
+    first = repo.consume_authentication(EMAIL, hash_token(token), "link")
+    # a second caller that already saw the record before the first delete
+    stale = {"_id": 1, "tokenHash": hash_token(token)}
+    monkeypatch.setattr(repo, "_matching_record", lambda *a, **k: stale)
+    second = repo.consume_authentication(EMAIL, hash_token(token), "link")
+    assert first is True and second is False
+
+
+def test_the_link_expires_quickly_and_the_session_later(controller, collection, monkeypatch):
+    monkeypatch.setenv("AUTH_LINK_TTL_MINUTES", "1")
+    monkeypatch.setenv("AUTH_SESSION_TTL_MINUTES", "60")
+    token = controller.generate_token()
+    controller.insert_token(EMAIL, token)
+    assert collection.docs[0]["expiresAt"] - collection.docs[0]["createdAt"] <= timedelta(minutes=1, seconds=1)
+    session = controller.exchange_link_token(token, EMAIL)
+    assert controller.is_token_valid(session, EMAIL)
+    collection.docs[0]["expiresAt"] = datetime.now() - timedelta(seconds=1)
+    assert not controller.is_token_valid(session, EMAIL)
+    late = controller.generate_token()
+    controller.insert_token(EMAIL, late)
+    collection.docs[-1]["expiresAt"] = datetime.now() - timedelta(seconds=1)
+    assert controller.exchange_link_token(late, EMAIL) is None
+
+
+def test_old_format_records_are_rejected(controller, collection):
     old = hashlib.sha256(str(datetime.now()).encode()).hexdigest()
     collection.docs.append({"_id": 99, "email": EMAIL, "hash": old,
                             "expiresAt": datetime.now() + timedelta(hours=1)})
     assert not controller.is_token_valid(old, EMAIL)
+    assert controller.exchange_link_token(old, EMAIL) is None
+    previous = controller.generate_token()  # issued before the link/session split: no "kind"
+    collection.docs.append({"_id": 100, "email": EMAIL, "tokenHash": hash_token(previous),
+                            "expiresAt": datetime.now() + timedelta(hours=1)})
+    assert not controller.is_token_valid(previous, EMAIL)
+    assert controller.exchange_link_token(previous, EMAIL) is None
     for bad in ("", None, "a" * 42, "a" * 44, "!" * 43, 12345, "a" * 43 + "\n"):
         assert not controller.is_token_valid(bad, EMAIL)
+        assert controller.exchange_link_token(bad, EMAIL) is None
 
 
-def test_few_live_tokens_per_email(controller, collection):
+def test_few_live_tokens_per_email_and_kind(controller, collection):
     for _ in range(12):
         controller.insert_token(EMAIL, controller.generate_token())
     assert len(collection.docs) <= AuthenticationRepository.MAX_ACTIVE_PER_EMAIL
@@ -155,21 +207,41 @@ def issued_token(client):
     return re.search(r"hash=([A-Za-z0-9_-]+)", link).group(1)
 
 
-def test_login_round_trip_and_link_is_urlencoded(client):
+def exchange(client, token, email=EMAIL):
+    return client.post("/auth/exchange", json={"email": email, "token": token})
+
+
+def test_login_round_trip_exchanges_the_link_once(client):
     assert client.post("/auth/send-link?email=prof%2Bx@udf.edu.br").status_code == 201
-    link = client.sent[-1][2]
-    assert "email=prof%2Bx%40udf.edu.br" in link
-    token = issued_token(client)
-    ok = client.get(f"/auth/validate?email=prof%2Bx@udf.edu.br&token={token}")
-    assert ok.status_code == 200
+    assert "email=prof%2Bx%40udf.edu.br" in client.sent[-1][2]
+    link = issued_token(client)
+    # the link is not a session
+    assert client.get(f"/auth/validate?email=prof%2Bx@udf.edu.br&token={link}").status_code == 403
+    first = exchange(client, link, "prof+x@udf.edu.br")
+    assert first.status_code == 200
+    session = first.get_json()["token"]
+    assert session != link
+    assert client.get(f"/auth/validate?email=prof%2Bx@udf.edu.br&token={session}").status_code == 200
+    assert exchange(client, link, "prof+x@udf.edu.br").status_code == 403  # single use
     assert client.get(f"/auth/validate?email=prof%2Bx@udf.edu.br&token={'A' * 43}").status_code == 403
+
+
+def test_exchange_rejects_bad_requests_and_is_rate_limited(client):
+    client.post(f"/auth/send-link?email={EMAIL}")
+    link = issued_token(client)
+    assert exchange(client, link, "other@udf.edu.br").status_code == 403
+    assert client.post("/auth/exchange", data="not json").status_code == 403
+    assert client.post("/auth/exchange", json={"email": EMAIL}).status_code == 403
+    codes = [exchange(client, "B" * 43).status_code for _ in range(33)]
+    assert codes[-1] == 429
 
 
 def test_a_failed_check_is_not_cached(client):
     client.post(f"/auth/send-link?email={EMAIL}")
-    token = issued_token(client)
+    link = issued_token(client)
+    session = exchange(client, link).get_json()["token"]
     assert client.get(f"/auth/validate?email={EMAIL}&token={'B' * 43}").status_code == 403
-    assert client.get(f"/auth/validate?email={EMAIL}&token={token}").status_code == 200
+    assert client.get(f"/auth/validate?email={EMAIL}&token={session}").status_code == 200
 
 
 def test_send_link_is_limited_per_email(client):
