@@ -4,7 +4,7 @@ from flask import Flask
 
 
 def test_graphql_endpoints_work_with_graphene_v3(monkeypatch):
-    monkeypatch.setenv("API_KEY_LIST", "test-key")
+    monkeypatch.setenv("API_KEY_LIST", "test-api-key-0123456789-abcdef")
     graphql_routes = importlib.import_module("SLL.graphql")
 
     app = Flask(__name__)
