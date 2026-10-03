@@ -38,3 +38,10 @@ constante). Sem a variável, ou com chave errada, o cabeçalho é ignorado e val
 conexão. Configure primeiro em Staging; o limite grosso por endereço de conexão dos pedidos de
 link (`send:ip`) continua no endereço de conexão. `TRUSTED_PROXY_HOPS` (padrão 1, correto no
 Render) diz quantos proxies acrescentam ao `X-Forwarded-For`.
+
+Sem Redis, os contadores ficam num cache em memória limitado por processo (20.000 chaves; se o
+cache falhar, um dicionário local com o mesmo teto). Só endereços bem formados e aceitos pela
+política de e-mail ganham contadores por e-mail; os demais contam apenas por cliente. Risco
+residual: um volume grande de endereços institucionais distintos e bem formados pode encher o
+teto e fazer a poda remover contadores mais antigos, reiniciando seus limites. Redis com TTL
+elimina esse risco, pois expira cada contador pela própria janela, sem poda por quantidade.
