@@ -610,6 +610,31 @@ def test_logout_makes_the_session_token_stop_validating_at_once(client):
     assert validate(client, session) == 403            # not served from the cache either
 
 
+def test_a_per_process_cache_never_serves_a_validation_logged_out_by_another_worker(client):
+    session = logged_in(client)
+    key = auth_routes.session_cache_key(EMAIL, session)
+    assert validate(client, session) == 200
+    assert cache.get(key) is None                      # SimpleCache is per worker: nothing is stored
+    # worker A cached True before worker B handled the logout (B's cache.delete cannot reach A)
+    assert logout(client, session).status_code == 204
+    cache.set(key, True, timeout=60)
+    assert validate(client, session) == 403            # the stale True is not trusted
+
+
+def test_a_shared_cache_still_caches_positive_validations_and_logout_clears_them(client, monkeypatch):
+    monkeypatch.setitem(client.application.config, "CACHE_TYPE", "RedisCache")
+    session = logged_in(client)
+    key = auth_routes.session_cache_key(EMAIL, session)
+    assert validate(client, session) == 200 and cache.get(key) is True
+    calls = []
+    real = AuthenticationController.is_token_valid
+    monkeypatch.setattr(AuthenticationController, "is_token_valid",
+                        lambda self, *a, **k: calls.append(1) or real(self, *a, **k))
+    assert validate(client, session) == 200 and calls == []      # served from the cache
+    assert logout(client, session).status_code == 204
+    assert cache.get(key) is None and validate(client, session) == 403
+
+
 def test_logout_is_idempotent_and_says_nothing_about_which_tokens_exist(client):
     session = logged_in(client)
     first, again = logout(client, session), logout(client, session)
