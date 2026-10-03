@@ -502,3 +502,74 @@ def test_an_allowlisted_address_keeps_its_counters(client, monkeypatch):
 def test_with_a_redis_url_the_cache_is_redis(monkeypatch):
     config = cache_config(monkeypatch, REDIS_URL="redis://redis:6379/0")
     assert config["CACHE_TYPE"] == "RedisCache" and config["CACHE_REDIS_URL"] == "redis://redis:6379/0"
+
+
+@pytest.mark.parametrize("email", [
+    "a..b@udf.edu.br",                # doubled dot
+    ".a@udf.edu.br",                  # leading dot
+    "a.@udf.edu.br",                  # trailing dot
+    "a b@udf.edu.br",                 # space
+    "a/b@udf.edu.br",                 # character outside the plain set
+    "a,b@udf.edu.br",
+    "x" * 65 + "@udf.edu.br",         # local part over 64 characters
+    "@udf.edu.br",                    # empty local part
+])
+def test_a_malformed_address_inside_the_domain_creates_no_per_email_counter(client, email):
+    assert auth_routes.counted_email(email) is None
+    response = client.get("/auth/validate", query_string={"email": email, "token": "H" * 43})
+    assert response.status_code == 403
+    response = client.post("/auth/exchange", json={"email": email, "token": "H" * 43})
+    assert response.status_code == 403
+    assert not [k for k in limit_keys(client) if "validate:email" in k]
+
+
+@pytest.mark.parametrize("email", ["a@udf.edu.br", "Ana.Souza+x_y%z-1@UDF.edu.br", "l" * 64 + "@udf.edu.br"])
+def test_a_well_formed_address_keeps_its_per_email_counters(client, email):
+    assert auth_routes.counted_email(email) == email.lower()
+    client.get("/auth/validate", query_string={"email": email, "token": "H" * 43})
+    assert f"rl:validate:email:{email.lower()}" in limit_keys(client)
+
+
+def test_a_malformed_address_still_counts_against_the_client(client, behind_the_api):
+    spray = {"headers": forwarded("198.51.100.77")}
+    codes = [client.get("/auth/validate", query_string={"email": f"a..{i}@udf.edu.br", "token": "H" * 43}, **spray).status_code
+             for i in range(303)]
+    assert codes[:300] == [403] * 300 and codes[300:] == [429] * 3
+    assert not [k for k in limit_keys(client) if "validate:email" in k]
+
+
+# --- in-process fallback used when the cache backend raises -------------------------------
+
+def test_the_local_fallback_never_grows_beyond_its_cap(monkeypatch):
+    assert rate_limit.LOCAL_MAX_ENTRIES == 20000
+    monkeypatch.setattr(rate_limit, "LOCAL_MAX_ENTRIES", 50)
+    for i in range(500):
+        rate_limit._local_count(f"rl:k{i}", True)
+        assert len(rate_limit._local) <= 50
+    assert "rl:k499" in rate_limit._local      # the newest is kept
+    assert "rl:k0" not in rate_limit._local    # the oldest went first
+
+
+def test_the_local_fallback_drops_expired_counters_before_live_ones(monkeypatch):
+    clock = {"now": 0.0}
+    monkeypatch.setattr(rate_limit.time, "monotonic", lambda: clock["now"])
+    monkeypatch.setattr(rate_limit, "LOCAL_MAX_ENTRIES", 5)
+    for key in ("rl:old1", "rl:old2"):
+        rate_limit._local_count(key, True)
+    clock["now"] = rate_limit.window_seconds() + 1  # both are now expired
+    for key in ("rl:live1", "rl:live2", "rl:live3"):
+        rate_limit._local_count(key, True)
+    rate_limit._local_count("rl:live4", True)       # at the cap: room comes from the expired ones
+    assert set(rate_limit._local) == {"rl:live1", "rl:live2", "rl:live3", "rl:live4"}
+
+
+def test_a_flood_of_distinct_keys_with_the_cache_down_stays_bounded(client, monkeypatch):
+    def broken(*args, **kwargs):
+        raise ConnectionError("redis down")
+
+    monkeypatch.setattr(cache, "get", broken)
+    monkeypatch.setattr(cache, "set", broken)
+    monkeypatch.setattr(rate_limit, "LOCAL_MAX_ENTRIES", 40)
+    for i in range(200):
+        client.get("/auth/validate", query_string={"email": f"p{i}@udf.edu.br", "token": "H" * 43})
+        assert len(rate_limit._local) <= 40

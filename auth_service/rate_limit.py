@@ -17,6 +17,10 @@ from cache import cache
 
 _local = {}
 _lock = threading.Lock()
+# Keys come from clients, so the fallback is bounded: at the cap, expired counters go
+# first, then the oldest ones. Evicting a live counter resets its limit, which is
+# preferred over unbounded memory while the cache backend is down.
+LOCAL_MAX_ENTRIES = 20000
 
 
 def window_seconds():
@@ -76,9 +80,21 @@ def subject_ip(request):
     return forwarded_client(request) or client_ip(request)
 
 
+def _make_room(now):
+    """Keep ``_local`` below LOCAL_MAX_ENTRIES (caller holds the lock)."""
+    if len(_local) < LOCAL_MAX_ENTRIES:
+        return
+    for key in [k for k, (_, reset_at) in _local.items() if now >= reset_at]:
+        del _local[key]
+    while len(_local) >= LOCAL_MAX_ENTRIES:
+        del _local[next(iter(_local))]  # dicts keep insertion order: the first key is the oldest
+
+
 def _local_count(key, increment):
     now = time.monotonic()
     with _lock:
+        if key not in _local:
+            _make_room(now)
         count, reset_at = _local.get(key, (0, 0.0))
         if now >= reset_at:
             count, reset_at = 0, now + window_seconds()

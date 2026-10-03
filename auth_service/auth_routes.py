@@ -1,3 +1,4 @@
+import re
 import os
 from functools import wraps
 from hashlib import sha256
@@ -75,15 +76,28 @@ POSITIVE_CACHE_SECONDS = 60
 MAX_EMAIL_LENGTH = 254  # RFC 5321 path limit; anything longer cannot be an address
 
 
+# Local part: 1-64 characters, no leading, trailing or doubled dot (RFC 5321 limit and dot rules).
+_LOCAL_PART = re.compile(r"(?!\.)(?!.*\.\.)(?!.*\.$)[A-Za-z0-9._%+-]{1,64}")
+
+
+def well_formed_email(email):
+    """True for exactly one '@' with a plain local part (see _LOCAL_PART) before it."""
+    local, separator, domain = email.partition("@")
+    return bool(separator) and "@" not in domain and bool(domain) and _LOCAL_PART.fullmatch(local) is not None
+
+
 def counted_email(raw):
     """The normalized e-mail when it may have per-address counters, else None.
 
-    Only an address send-link would accept (same policy) can ever hold a valid
-    token, so any other string gets no per-address counters: otherwise a client
-    could create one cache entry per invented string.
+    Only a well-formed address that send-link would accept (same policy) can ever
+    hold a valid token, so any other string gets no per-address counters: otherwise
+    a client could create cache entries for invented strings, such as an in-domain
+    address with a local part no mail system would deliver to. The per-client
+    counter still applies to those.
     """
     email = str(raw or '').strip().lower()
-    if len(email) > MAX_EMAIL_LENGTH or not is_email_allowed(email, allowlist_setting()):
+    if (len(email) > MAX_EMAIL_LENGTH or not well_formed_email(email)
+            or not is_email_allowed(email, allowlist_setting())):
         return None
     return email
 
