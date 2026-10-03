@@ -1,14 +1,16 @@
 """Every error answers generic JSON (no stack trace, no internal detail) and is logged."""
 
 import logging
+import os
 
 import pytest
 from flask import abort, request
-from werkzeug.exceptions import TooManyRequests
+from werkzeug.exceptions import TooManyRequests, UnsupportedMediaType
+from werkzeug.wrappers import Response
 
 import SLL
 
-KEY = "test-api-key"  # conftest.py sets API_KEY_LIST=test-api-key
+KEY = os.environ["API_KEY_LIST"]  # conftest.py sets a default before anything is imported
 
 
 class TestConfig:
@@ -47,6 +49,17 @@ def client():
         raise TooManyRequests(description="secret limiter detail", retry_after=30)
 
     app.add_url_rule("/__throttled", "throttled", throttled)
+
+    def leaky():
+        raise TooManyRequests(response=Response(status=429, headers=[
+            ("Retry-After", "7"), ("Set-Cookie", "session=abc123; HttpOnly"),
+            ("WWW-Authenticate", "Basic realm=x"), ("X-Internal-Detail", "secret header value")]))
+
+    def wrong_method():
+        raise UnsupportedMediaType(response=Response(status=415, headers=[("Allow", "GET, HEAD"), ("Set-Cookie", "a=b")]))
+
+    app.add_url_rule("/__leaky", "leaky", leaky)
+    app.add_url_rule("/__allow", "allow", wrong_method)
     app.add_url_rule("/__upload", "upload", lambda: (request.get_data(), 204)[1], methods=["POST"])
     app.add_url_rule("/__json", "json_only", lambda: request.get_json(), methods=["POST"])
     return app.test_client()
@@ -132,6 +145,22 @@ def test_retry_after_survives_and_the_description_does_not_leak(client):
     assert response.status_code == 429
     assert response.headers["Retry-After"] == "30"
     assert "secret limiter detail" not in response.get_data(as_text=True)
+
+
+def test_only_allow_and_retry_after_are_copied_from_the_exception(client):
+    response = client.get("/__leaky", headers=HEADERS)
+    assert response.status_code == 429
+    assert response.headers["Retry-After"] == "7"
+    for name in ("Set-Cookie", "WWW-Authenticate", "X-Internal-Detail"):
+        assert name not in response.headers, name
+    assert "secret header value" not in response.get_data(as_text=True)
+
+
+def test_allow_passes_through_the_generic_handler(client):
+    response = client.get("/__allow", headers=HEADERS)
+    assert response.status_code == 415  # goes through the generic handler
+    assert response.headers["Allow"] == "GET, HEAD"
+    assert "Set-Cookie" not in response.headers
 
 
 def test_other_http_errors_are_logged_at_error_level_with_the_path(client, caplog):
