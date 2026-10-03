@@ -39,6 +39,6 @@ def test_log_lines_go_to_stdout_not_only_to_a_file_in_the_container():
     )
     src = Path(__file__).resolve().parents[1]
     result = subprocess.run([sys.executable, "-c", code], cwd=src, capture_output=True, text=True,
-                            env={"PATH": "/usr/bin:/bin", "PYTHONPATH": str(src), "PYTHONDONTWRITEBYTECODE": "1", "API_KEY_LIST": "test-api-key"})
+                            env={"PATH": "/usr/bin:/bin", "PYTHONPATH": str(src), "PYTHONDONTWRITEBYTECODE": "1", "API_KEY_LIST": "test-api-key-0123456789-abcdef"})
     assert "Message: boom" in result.stdout, result.stderr
     assert "FileHandler" not in result.stdout.splitlines()[-1], "a file is written only when LOG_FILE is set"

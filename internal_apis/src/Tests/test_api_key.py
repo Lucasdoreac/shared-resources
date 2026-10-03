@@ -83,7 +83,31 @@ def test_missing_or_empty_key_list_stops_the_start(monkeypatch, raw):
 
 
 def test_key_list_is_trimmed_and_blanks_dropped():
-    assert config_module.parse_api_keys(" a , ,b,, ") == ["a", "b"]
+    a, b = "a" * 24, "b" * 30
+    assert config_module.parse_api_keys(f" {a} , ,{b},, ") == [a, b]
+
+
+@pytest.mark.parametrize("raw", ["short-key", "x" * 23, f"{'k' * 40},{'y' * 23}"])
+def test_a_short_key_stops_the_start(raw):
+    with pytest.raises(RuntimeError, match="shorter than 24"):
+        config_module.parse_api_keys(raw)
+
+
+@pytest.mark.parametrize("raw", ["x" * 24, f"{'k' * 27}", f"{'k' * 48},{'y' * 24}"])
+def test_keys_of_24_characters_or_more_start(raw):
+    assert config_module.parse_api_keys(raw) == [item for item in raw.split(",")]
+
+
+def test_a_short_key_does_not_leak_into_the_error():
+    with pytest.raises(RuntimeError) as error:
+        config_module.parse_api_keys("secret-short")
+    assert "secret-short" not in str(error.value)
+
+
+def test_the_development_opt_out_also_allows_a_short_key(monkeypatch):
+    monkeypatch.setenv("FLASK_ENV", "development")
+    monkeypatch.setenv("ALLOW_INSECURE_DEV", "true")
+    assert config_module.parse_api_keys("short") == ["short"]
 
 
 def test_the_opt_out_needs_development_and_the_flag(client, monkeypatch):
