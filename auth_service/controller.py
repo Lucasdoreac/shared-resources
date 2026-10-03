@@ -75,6 +75,19 @@ class AuthenticationController:
             return False
         return self.tokens_repository.validate_authentication(email, hash_token(token), 'session')
 
+    def revoke_session(self, token: str, email: str) -> bool:
+        """Delete the caller's session record (logout); True only when this call removed it.
+
+        The delete is the claim, as for the link exchange, so a second logout with the same
+        token (or a concurrent one) finds nothing and reports False.
+        """
+        if not isinstance(token, str) or not TOKEN_PATTERN.fullmatch(token):
+            return False
+        email = normalize_email(email)
+        if not email:
+            return False
+        return self.tokens_repository.consume_authentication(email, hash_token(token), 'session')
+
     def insert_token(self, email: str, token: str) -> str:
         """Store only the hash of an e-mailed link token, bound to ``email``, short-lived."""
         expires_at = datetime.now() + link_ttl()
