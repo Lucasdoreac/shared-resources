@@ -9,6 +9,9 @@ from utils.cache import init_cache
 from .graphql import setup_graphql_routes
 from .restapi import setup_rest_routes
 
+# Headers of an HTTPException response that the JSON handler may forward (no route sets WWW-Authenticate).
+FORWARDED_ERROR_HEADERS = ("Allow", "Retry-After")
+
 def create_app(config_class):
     app = Flask(__name__)
     app.config.from_object(config_class)
@@ -96,8 +99,9 @@ def create_app(config_class):
         )
         response = jsonify({"error": error.name})  # the standard status name, never request data
         response.status_code = error.code
-        for name, value in error.get_response().headers:  # Allow, Retry-After, ...
-            if name.lower() not in ("content-type", "content-length"):
+        for name in FORWARDED_ERROR_HEADERS:  # an allowlist: Set-Cookie and the like never travel
+            value = error.get_response().headers.get(name)
+            if value:
                 response.headers[name] = value
         return response
 
