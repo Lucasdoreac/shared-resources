@@ -43,8 +43,7 @@ def token_required(f):
         # Only a positive answer is cached, briefly and under a hash of the
         # pair, so a revoked or expired token stops working within a minute and
         # random guesses cannot fill the cache.
-        pair = sha256(f"{email}\0{token}".encode('utf-8')).hexdigest()
-        cache_key = f"auth_token:{pair}"
+        cache_key = session_cache_key(email, token)
         if cache.get(cache_key) is True:
             return f(*args, **kwargs)
 
@@ -84,6 +83,12 @@ def well_formed_email(email):
     """True for exactly one '@' with a plain local part (see _LOCAL_PART) before it."""
     local, separator, domain = email.partition("@")
     return bool(separator) and "@" not in domain and bool(domain) and _LOCAL_PART.fullmatch(local) is not None
+
+
+def session_cache_key(email, token):
+    """Key of the brief positive-validation cache, under a hash of the pair."""
+    pair = sha256(f"{email}\0{token}".encode('utf-8')).hexdigest()
+    return f"auth_token:{pair}"
 
 
 def counted_email(raw):
@@ -286,6 +291,28 @@ class AuthRoutes:
             record_failure(keys)
             return jsonify({"message": "Invalid or expired link"}), 403
         return jsonify({"token": session}), 200
+
+    @staticmethod
+    @auth_bp.route('/auth/logout', methods=['POST'])
+    def logout():
+        """End the caller's session: delete its record so the token stops validating.
+
+        Idempotent and silent: the answer is 204 whether or not a session was removed, so it
+        says nothing about which tokens exist, and the token is never echoed. A call that
+        removes nothing counts like a failed validation against the per-client limits.
+        """
+        body = request.get_json(silent=True)
+        body = body if isinstance(body, dict) else {}
+        email = counted_email(body.get('email'))
+        token = body.get('token')
+        keys = failure_keys(email)
+        if validation_blocked(keys):
+            return rate_limited()
+        if email is not None and AuthenticationController().revoke_session(token, email):
+            cache.delete(session_cache_key(email, token))  # the 60 s positive cache must not outlive the logout
+        else:
+            record_failure(keys)
+        return '', 204
 
     @staticmethod
     @auth_bp.route('/auth/validate', methods=['GET'])

@@ -585,3 +585,64 @@ def test_a_flood_of_distinct_keys_with_the_cache_down_stays_bounded(client, monk
     for i in range(200):
         client.get("/auth/validate", query_string={"email": f"p{i}@udf.edu.br", "token": "H" * 43})
         assert len(rate_limit._local) <= 40
+
+
+# --- logout: the session record is deleted server-side --------------------------------------
+
+def logged_in(client, email=EMAIL):
+    client.post(f"/auth/send-link?email={email}")
+    return exchange(client, issued_token(client), email).get_json()["token"]
+
+
+def validate(client, token, email=EMAIL):
+    return client.get("/auth/validate", query_string={"email": email, "token": token}).status_code
+
+
+def logout(client, token, email=EMAIL, **kwargs):
+    return client.post("/auth/logout", json={"email": email, "token": token}, **kwargs)
+
+
+def test_logout_makes_the_session_token_stop_validating_at_once(client):
+    session = logged_in(client)
+    assert validate(client, session) == 200            # primes the brief positive cache
+    response = logout(client, session)
+    assert response.status_code == 204 and response.data == b""
+    assert validate(client, session) == 403            # not served from the cache either
+
+
+def test_logout_is_idempotent_and_says_nothing_about_which_tokens_exist(client):
+    session = logged_in(client)
+    first, again = logout(client, session), logout(client, session)
+    unknown = logout(client, "U" * 43)
+    malformed = logout(client, "not a token")
+    assert {r.status_code for r in (first, again, unknown, malformed)} == {204}
+    assert all(r.data == b"" for r in (first, again, unknown, malformed))
+
+
+def test_logout_never_echoes_the_token(client):
+    session = logged_in(client)
+    response = logout(client, session)
+    assert session.encode() not in response.data and session not in str(response.headers)
+
+
+def test_logout_ends_only_the_callers_own_session(client):
+    mine, other = logged_in(client), logged_in(client, "outra@udf.edu.br")
+    logout(client, other, email=EMAIL)                  # someone else's token under my address: nothing happens
+    assert validate(client, other, "outra@udf.edu.br") == 200
+    assert validate(client, mine) == 200
+    logout(client, mine)
+    assert validate(client, mine) == 403 and validate(client, other, "outra@udf.edu.br") == 200
+
+
+def test_a_link_token_cannot_be_used_to_log_out_nor_is_it_consumed(client):
+    client.post(f"/auth/send-link?email={EMAIL}")
+    link = issued_token(client)
+    assert logout(client, link).status_code == 204
+    assert exchange(client, link).status_code == 200    # the link was not touched by logout
+
+
+def test_logout_calls_that_remove_nothing_count_against_the_client(client, behind_the_api):
+    spray = {"headers": forwarded("198.51.100.77")}
+    codes = [logout(client, "V" * 43, **spray).status_code for _ in range(33)]
+    assert codes[:30] == [204] * 30 and codes[30:] == [429] * 3
+    assert logout(client, "V" * 43, headers=forwarded("198.51.100.20")).status_code == 204   # someone else is untouched
