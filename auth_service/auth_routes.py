@@ -41,15 +41,19 @@ def token_required(f):
             return jsonify({"message": "Invalid or missing token"}), 403
 
         # Only a positive answer is cached, briefly and under a hash of the
-        # pair, so a revoked or expired token stops working within a minute and
-        # random guesses cannot fill the cache.
+        # pair, so random guesses cannot fill the cache. It is cached only when
+        # the backend is shared by every worker (Redis): with a per-process cache
+        # a logout handled by one worker would leave the token valid in the
+        # others for up to a minute, so there each validation asks the session store.
+        use_cache = positive_cache_enabled()
         cache_key = session_cache_key(email, token)
-        if cache.get(cache_key) is True:
+        if use_cache and cache.get(cache_key) is True:
             return f(*args, **kwargs)
 
         authentication_controller = AuthenticationController()
         if authentication_controller.is_token_valid(token=token, email=email):
-            cache.set(cache_key, True, timeout=POSITIVE_CACHE_SECONDS)
+            if use_cache:
+                cache.set(cache_key, True, timeout=POSITIVE_CACHE_SECONDS)
             return f(*args, **kwargs)
 
         record_failure(keys)
@@ -83,6 +87,15 @@ def well_formed_email(email):
     """True for exactly one '@' with a plain local part (see _LOCAL_PART) before it."""
     local, separator, domain = email.partition("@")
     return bool(separator) and "@" not in domain and bool(domain) and _LOCAL_PART.fullmatch(local) is not None
+
+
+SHARED_CACHE_TYPES = ('redis', 'rediscache', 'redisclustercache', 'rediscluster')
+
+
+def positive_cache_enabled():
+    """True only when the cache is shared across processes, so a logout (cache.delete) reaches every worker."""
+    cache_type = str(current_app.config.get('CACHE_TYPE') or '').lower().rsplit('.', 1)[-1]
+    return cache_type in SHARED_CACHE_TYPES
 
 
 def session_cache_key(email, token):
