@@ -235,8 +235,10 @@ class AuthRoutes:
 
         # inject controller
         authentication_controller = AuthenticationController()
-        email = (request.args.get('email') or '').strip().lower()
-        if not is_email_allowed(email, allowlist_setting()):
+        # Same policy as validate/exchange: a malformed address inside the domain is refused
+        # here and gets no per-address counters (the cache must not hold invented strings).
+        email = counted_email(request.args.get('email'))
+        if email is None:
             return jsonify({'error': 'Invalid email domain'}), 400
         client = rate_limit.subject_ip(request)
         if (rate_limit.hit(f"send:email:{email}:{client}") > SEND_LINK_PER_EMAIL_AND_CLIENT

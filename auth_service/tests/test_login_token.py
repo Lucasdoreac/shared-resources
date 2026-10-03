@@ -523,6 +523,18 @@ def test_a_malformed_address_inside_the_domain_creates_no_per_email_counter(clie
     assert not [k for k in limit_keys(client) if "validate:email" in k]
 
 
+@pytest.mark.parametrize("email", [
+    "a..b@udf.edu.br", ".a@udf.edu.br", "a b@udf.edu.br", "a/b@udf.edu.br",
+    "x" * 65 + "@udf.edu.br", "@udf.edu.br", "y" * 300 + "@udf.edu.br",
+])
+def test_send_link_refuses_a_malformed_address_and_creates_no_per_email_counter(client, email):
+    response = client.post("/auth/send-link", query_string={"email": email})
+    assert response.status_code == 400
+    assert not client.sent                                      # nothing was mailed
+    assert not [k for k in limit_keys(client) if "send:email" in k]
+    assert not [k for k in limit_keys(client) if "send:ip" in k]  # refused before any counter, as for a bad domain
+
+
 @pytest.mark.parametrize("email", ["a@udf.edu.br", "Ana.Souza+x_y%z-1@UDF.edu.br", "l" * 64 + "@udf.edu.br"])
 def test_a_well_formed_address_keeps_its_per_email_counters(client, email):
     assert auth_routes.counted_email(email) == email.lower()
