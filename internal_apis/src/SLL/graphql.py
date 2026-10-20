@@ -4,9 +4,9 @@ from flask_graphql import GraphQLView
 from BLL import ContextLoaders, Query, Mutation
 from utils import log_info_request
 
-graphql_bp = Blueprint('graphql', __name__, url_prefix='/graphql')
-
 def setup_graphql_routes(app):
+    # Blueprint criado por app: assim create_app pode ser chamado mais de uma vez (testes)
+    graphql_bp = Blueprint('graphql', __name__, url_prefix='/graphql')
     schema = Schema(query=Query, mutation=Mutation)
 
     # Endpoint do GraphQL

@@ -1,4 +1,3 @@
-from graphene import Boolean
 from mongoengine import Document, StringField, IntField, ListField, EmbeddedDocumentField, EmbeddedDocument, \
     BooleanField
 
@@ -50,7 +49,7 @@ class Teacher(Document):
     name = StringField(required=True, db_field='PROFESSOR')
     course = ListField(IntField(), required=True, db_field='COD_CURS')
     email = StringField(required=False, db_field='email')
-    active = BooleanField(required=True, db_field='ACTIVE')
+    active = BooleanField(required=False, default=True, db_field='ACTIVE')
     soft_deleted = StringField(required=False, db_field='soft_deleted')
 
 

@@ -2,6 +2,7 @@ import flask_caching
 from flasgger import swag_from
 from flask import Blueprint, jsonify, request
 from DAL import Teacher
+from BLL.teacher_service import active_teachers
 from utils.cache import cache
 from utils import log_info_request, log_resource_not_found, get_swagger_specification
 
@@ -39,7 +40,7 @@ def get_teachers():
             log_resource_not_found("Teacher", "course_id", course_id)
             return jsonify({"error": "Teacher not found"}), 404
 
-    teachers_queryset = Teacher.objects()
+    teachers_queryset = active_teachers()
     return format_teacher_response(teachers_queryset)
 
 
@@ -51,20 +52,22 @@ def get_teacher_by_id(teacher_id):
             "name": result.name,
             "course_id": result.course,
             "email": result.email if result.email else None,
-
+            "active": result.active,
         })
 
 
 def filter_teacher_by_name(teacher_name):
-    result = Teacher.objects.filter(name__icontains=teacher_name)
-    if result:
-        return format_teacher_response(result)
+    result = active_teachers().filter(name__icontains=teacher_name)
+    if not result:
+        raise Teacher.DoesNotExist  # resultado vazio vira 404 (antes retornava None e dava 500)
+    return format_teacher_response(result)
 
 
 def filter_teacher_by_course_id(course_id):
-    result = Teacher.objects.filter(course=course_id)
-    if result:
-        return format_teacher_response(result)
+    result = active_teachers().filter(course=course_id)
+    if not result:
+        raise Teacher.DoesNotExist  # resultado vazio vira 404 (antes retornava None e dava 500)
+    return format_teacher_response(result)
 
 
 def pagination_config(base_queryset):

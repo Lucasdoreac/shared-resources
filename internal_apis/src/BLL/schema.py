@@ -18,14 +18,13 @@ import datetime
 import os
 
 from graphql import GraphQLError
-from pymongo import MongoClient
+from flask import request
 
 from DAL import Campus, Course, Discipline, Period, Room, Teacher, Offer, Type
-
-mongodb_uri = os.getenv("MONGO_URI")
-database_name = os.getenv("MONGO_DATABASE")
-client = MongoClient(mongodb_uri)
-database = client[database_name]
+from utils.auth import validate_api_key
+from .teacher_service import (
+    AmbiguousTeacherName, TeacherNotFound, active_teachers, deactivate_teacher_by_name,
+)
 
 
 
@@ -129,6 +128,7 @@ class TeacherType(MongoengineObjectType):
     """
     course = List(CourseType)
     soft_deleted = graphene.String()
+    active = graphene.Boolean()
 
     class Meta:
         model = Teacher
@@ -361,7 +361,9 @@ class Query(ObjectType):
         Return a list of teachers. Supports filtering by name (search), limiting (first),
         skipping (skip), filtering by teacher_id, and searching by associated course name (searchCourse).
         """
-        query = Teacher.objects.filter(name__icontains=search) if search else Teacher.objects.all()
+        # listagens ocultam desativados; a busca por id continua devolvendo o professor
+        base = Teacher.objects if teacher_id else active_teachers()
+        query = base.filter(name__icontains=search) if search else base.all()
 
         if first:
             query = query.limit(first)
@@ -543,49 +545,24 @@ class CreateOffer(Mutation):
         return CreateOffer(offer=offer)
 
 class DeactivateTeacher(graphene.Mutation):
+    """Desativa (soft delete) um professor pelo nome exato. Exige `x-api-key` válido."""
 
     class Arguments:
-        name = graphene.String()
+        name = graphene.String(required=True)
 
     success = graphene.Boolean()
     teacher = graphene.Field(TeacherType)
 
-
-
-
     def mutate(self, info, name):
-
-        teacher_list = Teacher.objects.filter(name__icontains=name)
-        teacher_obj = teacher_list.first()
-        if not teacher_obj:
-            raise GraphQLError(
-                f"Teacher with ID {name} not found.")
-        time = datetime.datetime.now()
-        timestr = time.strftime('%Y-%m-%d %H:%M:%S')
-
-        teacher_obj.update(soft_deleted= timestr)
-        teacher_obj.save()
-
-
-        return DeactivateTeacher(
-
-            success=True,
-            teacher=teacher_obj
-
-        )
-
-
-
-
-
-
-
-
-
-
-
-
-
+        if not validate_api_key(request.headers.get("x-api-key")):
+            raise GraphQLError("Unauthorized: invalid or missing API Key")
+        try:
+            teacher = deactivate_teacher_by_name(name)
+        except TeacherNotFound:
+            raise GraphQLError(f"Teacher '{name}' not found.")
+        except AmbiguousTeacherName:
+            raise GraphQLError(f"More than one teacher named '{name}'.")
+        return DeactivateTeacher(success=True, teacher=teacher)
 
 
 class Mutation(ObjectType):
