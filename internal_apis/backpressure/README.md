@@ -21,7 +21,7 @@ Neste projeto, existem dois tipos de buckets:
   - Os parâmetros do bucket global (capacidade, nome da fila, taxa de vazamento) **são definidos via variáveis de ambiente** no arquivo `.env`:
     - `GLOBAL_BUCKET_SIZE`: capacidade máxima do bucket global (ex: 125)
     - `GLOBAL_QUEUE_NAME`: nome da fila no RabbitMQ (ex: global)
-    - `GLOBAL_LEAK_RATE`: taxa de vazamento do bucket global (ex: 0.3)
+    - `GLOBAL_LEAK_RATE`: intervalo em segundos entre remoções de tokens (ex: 0.3)
   - **Não é necessário passar parâmetros no decorator**. O sistema buscará as configurações automaticamente do `.env`.
 
 ---
@@ -78,8 +78,12 @@ Neste projeto, existem dois tipos de buckets:
   GLOBAL_QUEUE_NAME=global
   GLOBAL_LEAK_RATE=0.3
   ```
-- Para alterar a capacidade, nome da fila ou taxa de vazamento, basta editar o `.env` e reiniciar o serviço.
-- **Atenção:** O RabbitMQ não permite alterar argumentos de uma fila já existente. Se mudar o `GLOBAL_BUCKET_SIZE` ou outros argumentos, altere também o `GLOBAL_QUEUE_NAME` para evitar conflitos, ou exclua a fila antiga manualmente.
+- Configure também `API_KEY_LIST` e as credenciais RabbitMQ para o ambiente. O Compose compartilha a configuração global entre catálogo e worker.
+- O worker roda no serviço `global-bucket-worker`, usando a mesma imagem do catálogo. A factory Flask não inicia threads de consumo: dois workers Gunicorn não devem criar dois consumidores globais.
+- Após configurar o ambiente, execute na raiz de shared-resources: `docker compose up -d rabbitmq global-bucket-worker internal_apis`. Mantenha um consumidor por fila; não escale esse serviço automaticamente.
+- O ponto de entrada é `python -m backpressure.leaky_bucket_worker`. SIGTERM/SIGINT solicitam parada, aguardando o intervalo atual e fechando a conexão.
+- O worker declara a fila durável sem apagá-la e espera o intervalo após cada tentativa de consumo, inclusive quando há mensagens. Não grava o corpo das mensagens em `test_logs`.
+- Para alterar capacidade/nome/intervalo, reinicie API e worker com configuração consistente. RabbitMQ recusa argumentos incompatíveis de uma fila existente: use outra fila ou uma migração deliberada; o worker não apaga a fila para contornar o erro.
 
 ---
 

@@ -49,22 +49,43 @@ services:
       - mongo-data:/data/db
       
   internal_apis:
-    build:
+    build: &catalog_build
       context: ./internal_apis
       dockerfile: Dockerfile
+      target: runtime
     container_name: internal_apis
     restart: unless-stopped
     ports:
       - "5081:5081"
     depends_on:
-      - redis-local
-      - mongo
-    environment:
-      - REDIS_HOST=redis-local
-      - REDIS_PORT=6379
-      - REDIS_URL=redis://redis-local:6379/0
-      - MONGO_URI=mongodb://mongo:27017/shared-resources
-      - MONGO_DATABASE=shared-resources
+      redis-local:
+        condition: service_healthy
+      mongo:
+        condition: service_started
+      rabbitmq:
+        condition: service_healthy
+    environment: &catalog_environment
+      REDIS_HOST: redis-local
+      REDIS_PORT: 6379
+      REDIS_URL: redis://redis-local:6379/0
+      MONGO_URI: mongodb://mongo:27017/shared-resources
+      MONGO_DATABASE: shared-resources
+      API_KEY_LIST: ${API_KEY_LIST:?Configure API_KEY_LIST}
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_USER: ${RABBITMQ_USER:-user}
+      RABBITMQ_PASS: ${RABBITMQ_PASS:-password}
+      GLOBAL_BUCKET_SIZE: ${GLOBAL_BUCKET_SIZE:?Configure GLOBAL_BUCKET_SIZE}
+      GLOBAL_QUEUE_NAME: ${GLOBAL_QUEUE_NAME:?Configure GLOBAL_QUEUE_NAME}
+      GLOBAL_LEAK_RATE: ${GLOBAL_LEAK_RATE:?Configure GLOBAL_LEAK_RATE}
+
+  global-bucket-worker:
+    build: *catalog_build
+    restart: unless-stopped
+    command: ["poetry", "run", "python", "-m", "backpressure.leaky_bucket_worker"]
+    environment: *catalog_environment
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
 
 
   rabbitmq:
@@ -75,8 +96,8 @@ services:
       - "5672:5672"   # Porta para o protocolo AMQP
       - "15672:15672" # Porta para a interface de gerenciamento
     environment:
-      - RABBITMQ_DEFAULT_USER=user
-      - RABBITMQ_DEFAULT_PASS=password
+      - RABBITMQ_DEFAULT_USER=${RABBITMQ_USER:-user}
+      - RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASS:-password}
     volumes:
       - rabbitmq-data:/var/lib/rabbitmq
     healthcheck:
