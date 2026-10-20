@@ -7,5 +7,5 @@ from config_module import get_config
 internal_api = create_app(get_config())
 
 if __name__ == "__main__":
-    internal_api.run(host="0.0.0.0", port=5081, debug=True)
+    internal_api.run(host="0.0.0.0", port=5081, debug=False)
 

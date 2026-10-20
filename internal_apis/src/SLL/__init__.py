@@ -1,20 +1,32 @@
+import os
+
 from flasgger import Swagger
 from flask import Flask, jsonify
 from mongoengine import connect
 from utils import log_error_request
+import threading
+from backpressure.leaky_bucket_worker import start_leaky_bucket_worker
+from utils import log_info_request
 from utils.cache import init_cache
 from .graphql import setup_graphql_routes
 from .restapi import setup_rest_routes
 
+
 def create_app(config_class):
     app = Flask(__name__)
+
     app.config.from_object(config_class)
+
 
     init_cache(app)
 
     # Registra as rotas REST e GraphQL
     setup_rest_routes(app)
     setup_graphql_routes(app)
+    worker_thread = threading.Thread(
+        target=start_leaky_bucket_worker, args=(float(os.getenv('GLOBAL_LEAK_RATE')), int(os.getenv('GLOBAL_BUCKET_SIZE')), os.getenv('GLOBAL_QUEUE_NAME')), daemon=True
+    )
+    worker_thread.start()
 
     # Configuração do Swagger
     swagger_config = {
@@ -69,4 +81,6 @@ def create_app(config_class):
         raise RuntimeError("This is a test error for 500 handler")
 
 
+
     return app
+
