@@ -1,10 +1,8 @@
 from datetime import datetime
-from auth_service.controller import AuthenticationController
 import redis
 import time
 from functools import wraps
 from flask import Flask, request, jsonify
-from auth_service.auth_routes import token_required
 import traceback
 
 class LeakyBucket:

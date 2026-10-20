@@ -15,9 +15,9 @@ def mongo_connection():
 @pytest.fixture
 def mock_courses(mongo_connection):
     courses = [
-        models.Course(id=1, name="Engenharia de Software"),
-        models.Course(id=2, name="Ciência da Computação"),
-        models.Course(id=3, name="Sistemas Operacionais"),
+        models.Course(id=1, code="ES", name="Engenharia de Software"),
+        models.Course(id=2, code="CC", name="Ciência da Computação"),
+        models.Course(id=3, code="SO", name="Sistemas Operacionais"),
     ]
 
 
@@ -38,5 +38,4 @@ def test_course_loader(mock_courses):
 
     # Assert
     assert result == mock_courses
-
 

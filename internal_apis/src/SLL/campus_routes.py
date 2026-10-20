@@ -1,8 +1,6 @@
 from flask import Blueprint, jsonify, request
 from flasgger import swag_from
-from internal_apis.src.utils.auth import check_api_key
 from DAL import Campus
-from auth_routes import token_required
 from utils import log_info_request, log_resource_not_found, get_swagger_specification
 from backpressure.individual_leaky_bucket import LeakyBucket
 from backpressure.leaky_bucket_rabbitmq import LeakyBucketRabbitMQ

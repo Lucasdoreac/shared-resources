@@ -4,7 +4,7 @@ import pika
 import threading
 from flask import Flask, jsonify
 from backpressure.leaky_bucket_rabbitmq import LeakyBucketRabbitMQ
-from leaky_bucket_worker import start_leaky_bucket_worker
+from backpressure.leaky_bucket_worker import start_leaky_bucket_worker
 
 @pytest.fixture()
 def app():

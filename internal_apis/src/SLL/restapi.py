@@ -6,7 +6,7 @@ from .periods_routes import periods_bp
 from .rooms_routes import rooms_bp
 from .teachers_routes import teachers_bp
 from .types_routes import types_bp
-from internal_apis.professor_endpoint.professor_endpoint import deactivate_teacher_bp
+from professor_endpoint.professor_endpoint import deactivate_teacher_bp
 
 def setup_rest_routes(app):
 
