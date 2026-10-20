@@ -52,9 +52,11 @@ def client(app):
 
 
 @pytest.fixture()
-def key():
-    from utils.auth import API_KEY_LIST
-    return {"x-api-key": API_KEY_LIST[0]}
+def key(monkeypatch):
+    # A lista é lida no import; outro módulo coletado antes pode tê-la carregado vazia.
+    from utils import auth
+    monkeypatch.setattr(auth, "API_KEY_LIST", ["chave-de-teste"])
+    return {"x-api-key": "chave-de-teste"}
 
 
 def _names(resp):
