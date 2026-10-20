@@ -4,6 +4,19 @@ from flask import g
 from flask import request
 
 
+# Defaults do bucket global quando GLOBAL_* não está definida (API e worker leem daqui).
+GLOBAL_BUCKET_SIZE_DEFAULT = 100
+GLOBAL_LEAK_RATE_DEFAULT = 0.1
+
+
+def get_global_bucket_size():
+    return int(os.getenv("GLOBAL_BUCKET_SIZE") or GLOBAL_BUCKET_SIZE_DEFAULT)
+
+
+def get_global_leak_rate():
+    return float(os.getenv("GLOBAL_LEAK_RATE") or GLOBAL_LEAK_RATE_DEFAULT)
+
+
 def create_rabbitmq_connection():
     host = os.environ.get("RABBITMQ_HOST", "localhost")
     user = os.environ.get("RABBITMQ_USER", "user")

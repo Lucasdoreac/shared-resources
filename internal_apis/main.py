@@ -5,6 +5,8 @@ from config_module import get_config
 
 # Create the app at module level so Gunicorn can import it.
 internal_api = create_app(get_config())
+# Nome usado pelo pipeline do Danrley; aponta para o mesmo objeto WSGI.
+internal_apis = internal_api
 
 if __name__ == "__main__":
     internal_api.run(host="0.0.0.0", port=5081, debug=False)

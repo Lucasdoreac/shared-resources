@@ -49,7 +49,10 @@ class LeakyBucketRabbitMQ:
                 raise
 
     @staticmethod
-    def add_to_global_leaky_bucket(bucketcapacity=int(os.getenv('GLOBAL_BUCKET_SIZE')), queue_name=os.getenv('GLOBAL_QUEUE_NAME')):
+    def add_to_global_leaky_bucket(bucketcapacity=None, queue_name=os.getenv('GLOBAL_QUEUE_NAME')):
+        if bucketcapacity is None:
+            bucketcapacity = rabbitmq_utils.get_global_bucket_size()
+
         def decorator(f):
             @wraps(f)
             def wrapped(*args, **kwargs):

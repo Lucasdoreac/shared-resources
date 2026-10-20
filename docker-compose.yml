@@ -70,13 +70,13 @@ services:
       REDIS_URL: redis://redis-local:6379/0
       MONGO_URI: mongodb://mongo:27017/shared-resources
       MONGO_DATABASE: shared-resources
-      API_KEY_LIST: ${API_KEY_LIST:?Configure API_KEY_LIST}
+      API_KEY_LIST: ${API_KEY_LIST:-}
       RABBITMQ_HOST: rabbitmq
       RABBITMQ_USER: ${RABBITMQ_USER:-user}
       RABBITMQ_PASS: ${RABBITMQ_PASS:-password}
-      GLOBAL_BUCKET_SIZE: ${GLOBAL_BUCKET_SIZE:?Configure GLOBAL_BUCKET_SIZE}
-      GLOBAL_QUEUE_NAME: ${GLOBAL_QUEUE_NAME:?Configure GLOBAL_QUEUE_NAME}
-      GLOBAL_LEAK_RATE: ${GLOBAL_LEAK_RATE:?Configure GLOBAL_LEAK_RATE}
+      GLOBAL_BUCKET_SIZE: ${GLOBAL_BUCKET_SIZE:-100}
+      GLOBAL_QUEUE_NAME: ${GLOBAL_QUEUE_NAME:-}
+      GLOBAL_LEAK_RATE: ${GLOBAL_LEAK_RATE:-0.1}
 
   global-bucket-worker:
     build: *catalog_build

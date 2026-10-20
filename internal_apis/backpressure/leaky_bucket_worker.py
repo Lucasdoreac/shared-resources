@@ -5,6 +5,7 @@ import signal
 from threading import Event
 from backpressure.rabbitmq_utils import create_rabbitmq_connection
 from backpressure.rabbitmq_utils import get_leakybucket_queue_name
+from backpressure.rabbitmq_utils import get_global_bucket_size, get_global_leak_rate
 
 def start_leaky_bucket_worker(leakrate, bucketcapacity, queue_name=None, stop_event=None):
     if leakrate <= 0 or bucketcapacity <= 0:
@@ -32,8 +33,8 @@ if __name__ == "__main__":
     for sig in (signal.SIGTERM, signal.SIGINT):
         signal.signal(sig, lambda *_: stop.set())
     start_leaky_bucket_worker(
-        float(os.environ["GLOBAL_LEAK_RATE"]),
-        int(os.environ["GLOBAL_BUCKET_SIZE"]),
+        get_global_leak_rate(),
+        get_global_bucket_size(),
         os.getenv("GLOBAL_QUEUE_NAME"),
         stop_event=stop,
     )

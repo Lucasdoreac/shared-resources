@@ -15,7 +15,8 @@ class Config:
     # MongoDB URI setup
     MONGO_URI = os.getenv("MONGO_URI")
 
-    API_KEY_LIST = os.getenv("API_KEY_LIST").split(",")
+    # Sem chaves configuradas a lista fica vazia e check_api_key recusa todas as requisições.
+    API_KEY_LIST = [key for key in os.getenv("API_KEY_LIST", "").split(",") if key]
 
     SERVER_HOST = "0.0.0.0"
     SERVER_NAME = os.getenv("SERVER_NAME", "localhost:5081")
