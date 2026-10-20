@@ -1,4 +1,6 @@
-from mongoengine import Document, StringField, IntField, ListField, EmbeddedDocumentField, EmbeddedDocument
+from graphene import Boolean
+from mongoengine import Document, StringField, IntField, ListField, EmbeddedDocumentField, EmbeddedDocument, \
+    BooleanField
 
 
 class Campus(Document):
@@ -48,6 +50,8 @@ class Teacher(Document):
     name = StringField(required=True, db_field='PROFESSOR')
     course = ListField(IntField(), required=True, db_field='COD_CURS')
     email = StringField(required=False, db_field='email')
+    active = BooleanField(required=True, db_field='ACTIVE')
+    soft_deleted = StringField(required=False, db_field='soft_deleted')
 
 
 class Offer(Document):
@@ -104,6 +108,5 @@ class Type(Document):
     id = IntField(primary_key=True, db_field='_id')
     types = ListField(EmbeddedDocumentField(TypeDetail), required=True, db_field='types')
     collection = StringField(required=True, db_field='collection')
-
 
 

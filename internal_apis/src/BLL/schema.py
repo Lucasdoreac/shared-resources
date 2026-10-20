@@ -1,10 +1,10 @@
 """
-This module defines a GraphQL schema for querying and mutating data related to a university-like environment. 
-It uses MongoEngine models to represent entities such as Campuses, Courses, Disciplines, Periods, Rooms, Teachers, Offers, and Types. 
-The schema includes queries for fetching lists of these entities and various search parameters. 
+This module defines a GraphQL schema for querying and mutating data related to a university-like environment.
+It uses MongoEngine models to represent entities such as Campuses, Courses, Disciplines, Periods, Rooms, Teachers, Offers, and Types.
+The schema includes queries for fetching lists of these entities and various search parameters.
 It also provides mutations for creating Offers.
 
-This schema leverages DataLoader-like loaders (through `info.context['loaders']`) to batch load related entities 
+This schema leverages DataLoader-like loaders (through `info.context['loaders']`) to batch load related entities
 (e.g., courses associated with a discipline, or the campus associated with a room), improving query efficiency.
 
 Classes ending with `Type` are GraphQL object types corresponding to MongoEngine models or derived objects.
@@ -12,11 +12,21 @@ The `Query` class specifies root-level queries. The `Mutation` class defines roo
 """
 
 import graphene
-from graphene import ObjectType, List, Field, Mutation, Scalar
+from graphene import ObjectType, List, Field, Mutation, Scalar, String, Boolean
 from graphene_mongo import MongoengineObjectType
 import datetime
+import os
+
+from graphql import GraphQLError
+from pymongo import MongoClient
 
 from DAL import Campus, Course, Discipline, Period, Room, Teacher, Offer, Type
+
+mongodb_uri = os.getenv("MONGO_URI")
+database_name = os.getenv("MONGO_DATABASE")
+client = MongoClient(mongodb_uri)
+database = client[database_name]
+
 
 
 class CampusType(MongoengineObjectType):
@@ -118,6 +128,7 @@ class TeacherType(MongoengineObjectType):
         Additional fields come directly from the `Teacher` model.
     """
     course = List(CourseType)
+    soft_deleted = graphene.String()
 
     class Meta:
         model = Teacher
@@ -213,7 +224,7 @@ class Query(ObjectType):
     """
     The root Query object for the GraphQL schema.
 
-    Provides various query fields to fetch lists of campuses, courses, disciplines, periods, rooms, teachers, offers, and types. 
+    Provides various query fields to fetch lists of campuses, courses, disciplines, periods, rooms, teachers, offers, and types.
     Includes search, pagination (first, skip), and filtering (by ID or name) capabilities.
     """
 
@@ -248,6 +259,7 @@ class Query(ObjectType):
         skip=graphene.Int(),
         teacher_id=graphene.String(),
         searchCourse=graphene.String(),
+
     )
     offers = List(
         OfferType,
@@ -279,7 +291,7 @@ class Query(ObjectType):
 
     def resolve_courses(root, info, search=None, first=None, skip=None, course_id=None):
         """
-        Return a list of courses. Supports filtering by name (search), limiting (first), 
+        Return a list of courses. Supports filtering by name (search), limiting (first),
         skipping (skip), and filtering by specific course_id.
         """
         query = Course.objects.filter(name__icontains=search) \
@@ -298,7 +310,7 @@ class Query(ObjectType):
 
     def resolve_disciplines(root, info, search=None, first=None, skip=None, discipline_id=None, searchCourse=None):
         """
-        Return a list of disciplines. Supports filtering by name (search), limiting (first), 
+        Return a list of disciplines. Supports filtering by name (search), limiting (first),
         skipping (skip), filtering by discipline_id, and searching by associated course name (searchCourse).
         """
         query = Discipline.objects.filter(name__icontains=search) \
@@ -328,7 +340,7 @@ class Query(ObjectType):
 
     def resolve_rooms(root, info, search=None, first=None, skip=None, room_id=None):
         """
-        Return a list of rooms. Supports filtering by name (search), limiting (first), 
+        Return a list of rooms. Supports filtering by name (search), limiting (first),
         skipping (skip), and filtering by room_id.
         """
         query = Room.objects.filter(name__icontains=search) if search else Room.objects.all()
@@ -346,7 +358,7 @@ class Query(ObjectType):
 
     def resolve_teachers(root, info, search=None, first=None, skip=None, teacher_id=None, searchCourse=None):
         """
-        Return a list of teachers. Supports filtering by name (search), limiting (first), 
+        Return a list of teachers. Supports filtering by name (search), limiting (first),
         skipping (skip), filtering by teacher_id, and searching by associated course name (searchCourse).
         """
         query = Teacher.objects.filter(name__icontains=search) if search else Teacher.objects.all()
@@ -377,7 +389,7 @@ class Query(ObjectType):
             searchSemester=None, searchYear=None
     ):
         """
-        Return a list of offers. Supports filtering by related entities' names 
+        Return a list of offers. Supports filtering by related entities' names
         (campus, discipline, period, room, teacher) and paging (first, skip).
         """
         query = Offer.objects.all()
@@ -435,7 +447,7 @@ class Query(ObjectType):
 
 class IntOrString(Scalar):
     """
-    A custom scalar that may represent either an Int or a String. 
+    A custom scalar that may represent either an Int or a String.
     Useful in cases where an ID field might be numeric or a string.
     """
 
@@ -503,7 +515,7 @@ class CreateOffer(Mutation):
 
     def mutate(self, info, offer_data):
         """
-        Create and save a new Offer using the provided input. 
+        Create and save a new Offer using the provided input.
         Resolved entities (discipline, period, campus, room, teacher) are loaded from the DataLoader.
         """
         loader = info.context['loaders']['context-loader'].offer_loader
@@ -530,6 +542,51 @@ class CreateOffer(Mutation):
 
         return CreateOffer(offer=offer)
 
+class DeactivateTeacher(graphene.Mutation):
+
+    class Arguments:
+        name = graphene.String()
+
+    success = graphene.Boolean()
+    teacher = graphene.Field(TeacherType)
+
+
+
+
+    def mutate(self, info, name):
+
+        teacher_list = Teacher.objects.filter(name__icontains=name)
+        teacher_obj = teacher_list.first()
+        if not teacher_obj:
+            raise GraphQLError(
+                f"Teacher with ID {name} not found.")
+        time = datetime.datetime.now()
+        timestr = time.strftime('%Y-%m-%d %H:%M:%S')
+
+        teacher_obj.update(soft_deleted= timestr)
+        teacher_obj.save()
+
+
+        return DeactivateTeacher(
+
+            success=True,
+            teacher=teacher_obj
+
+        )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 class Mutation(ObjectType):
     """
@@ -539,3 +596,4 @@ class Mutation(ObjectType):
         create_offer (CreateOffer): Mutation to create a new Offer.
     """
     create_offer = CreateOffer.Field()
+    deactivate_teacher = DeactivateTeacher.Field()
