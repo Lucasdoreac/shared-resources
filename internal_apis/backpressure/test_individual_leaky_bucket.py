@@ -5,6 +5,18 @@ import pytest
 import fakeredis
 from flask import Flask, jsonify
 from backpressure.individual_leaky_bucket import LeakyBucket
+from unittest.mock import patch
+
+
+@pytest.mark.parametrize("configured", [None, "redis://redis:6379/4"])
+def test_redis_connection_uses_the_existing_application_configuration(monkeypatch, configured):
+    if configured is None:
+        monkeypatch.delenv("REDIS_URL", raising=False)
+    else:
+        monkeypatch.setenv("REDIS_URL", configured)
+    with patch("redis.Redis.from_url") as from_url:
+        assert LeakyBucket.get_redis() is from_url.return_value
+    from_url.assert_called_once_with(configured or "redis://localhost:6379/0")
 
 
 @pytest.fixture

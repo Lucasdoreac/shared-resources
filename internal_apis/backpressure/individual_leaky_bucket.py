@@ -1,3 +1,4 @@
+import os
 from datetime import datetime
 import redis
 import time
@@ -9,7 +10,7 @@ class LeakyBucket:
 
     @staticmethod
     def get_redis():
-        return redis.Redis.from_url("redis://localhost:6379/0")
+        return redis.Redis.from_url(os.getenv("REDIS_URL", "redis://localhost:6379/0"))
 
     @staticmethod
 
