@@ -5,8 +5,8 @@ from flask import request
 
 
 # Defaults do bucket global quando GLOBAL_* não está definida (API e worker leem daqui).
-GLOBAL_BUCKET_SIZE_DEFAULT = 100
-GLOBAL_LEAK_RATE_DEFAULT = 0.1
+GLOBAL_BUCKET_SIZE_DEFAULT = 125
+GLOBAL_LEAK_RATE_DEFAULT = 0.3
 
 
 def get_global_bucket_size():

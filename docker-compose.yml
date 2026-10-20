@@ -74,9 +74,9 @@ services:
       RABBITMQ_HOST: rabbitmq
       RABBITMQ_USER: ${RABBITMQ_USER:-user}
       RABBITMQ_PASS: ${RABBITMQ_PASS:-password}
-      GLOBAL_BUCKET_SIZE: ${GLOBAL_BUCKET_SIZE:-100}
+      GLOBAL_BUCKET_SIZE: ${GLOBAL_BUCKET_SIZE:-125}
       GLOBAL_QUEUE_NAME: ${GLOBAL_QUEUE_NAME:-}
-      GLOBAL_LEAK_RATE: ${GLOBAL_LEAK_RATE:-0.1}
+      GLOBAL_LEAK_RATE: ${GLOBAL_LEAK_RATE:-0.3}
 
   global-bucket-worker:
     build: *catalog_build
